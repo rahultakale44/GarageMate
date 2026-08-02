@@ -52,11 +52,14 @@ const GarageRegister = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (loading) return; // Prevent duplicate submission
+    
     setLoading(true);
     setError('');
 
     try {
-      await registerGarageOwner({
+      const result = await registerGarageOwner({
         ownerName: formData.ownerName,
         ownerEmail: formData.ownerEmail,
         ownerPhone: formData.ownerPhone,
@@ -76,9 +79,17 @@ const GarageRegister = () => {
         numberOfMechanics: 1,
         supportedVehicleTypes: ['CAR', 'BIKE', 'SUV'],
       });
-      navigate('/redirect');
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unable to create garage account');
+      
+      // Redirect to login with success message
+      navigate('/auth/garage/login', { 
+        state: { 
+          message: result.message,
+          email: formData.ownerEmail 
+        } 
+      });
+    } catch (err: any) {
+      const errorMessage = err?.response?.data?.message || err?.message || 'Unable to create garage account';
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }

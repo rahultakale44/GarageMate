@@ -36,22 +36,16 @@ export const registerUser = asyncHandler(async (req: AuthRequest, res: Response)
   // Send welcome email
   await sendWelcomeEmail(user.email, user.name).catch(console.error);
 
-  const accessToken = generateAccessToken(user._id.toString(), user.role, user.email);
-  const refreshToken = generateRefreshToken(user._id.toString(), user.role, user.email);
-
-  await RefreshToken.create({
-    token: refreshToken,
-    userId: user._id,
-    expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
-  });
-
   res.status(201).json({
     success: true,
-    message: 'User registered successfully',
+    message: 'Account created successfully. Please sign in to continue.',
     data: {
-      user: sanitizeUser(user),
-      accessToken,
-      refreshToken,
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+      },
     },
   });
 });
@@ -97,27 +91,21 @@ export const registerGarageOwner = asyncHandler(async (req: AuthRequest, res: Re
     supportedVehicleTypes: validatedData.supportedVehicleTypes,
   });
 
-  const accessToken = generateAccessToken(owner._id.toString(), owner.role, owner.email);
-  const refreshToken = generateRefreshToken(owner._id.toString(), owner.role, owner.email);
-
-  await RefreshToken.create({
-    token: refreshToken,
-    userId: owner._id,
-    expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
-  });
-
   res.status(201).json({
     success: true,
-    message: 'Garage owner registered successfully. Awaiting verification.',
+    message: 'Registration submitted successfully. Please sign in to view your verification status.',
     data: {
-      user: sanitizeUser(owner),
+      user: {
+        id: owner._id,
+        name: owner.name,
+        email: owner.email,
+        role: owner.role,
+      },
       garage: {
-        _id: garage._id,
+        id: garage._id,
         name: garage.name,
         verificationStatus: garage.verificationStatus,
       },
-      accessToken,
-      refreshToken,
     },
   });
 });

@@ -20,11 +20,12 @@ interface AuthContextValue {
   isAuthenticated: boolean;
   loading: boolean;
   login: (email: string, password: string) => Promise<void>;
-  registerUser: (payload: Record<string, unknown>) => Promise<void>;
-  registerGarageOwner: (payload: Record<string, unknown>) => Promise<void>;
+  registerUser: (payload: Record<string, unknown>) => Promise<{ message: string }>;
+  registerGarageOwner: (payload: Record<string, unknown>) => Promise<{ message: string }>;
   adminLogin: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
   refreshAuth: () => Promise<void>;
+  loginWithGoogle: (idToken: string, role: AuthRole) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
@@ -120,26 +121,18 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     persistSession(payload);
   };
 
-  const registerUser = async (payload: Record<string, unknown>) => {
+  const registerUser = async (payload: Record<string, unknown>): Promise<{ message: string }> => {
     const response = await axiosInstance.post(API_ENDPOINTS.AUTH.USER_REGISTER, payload);
-    const authData = response.data?.data;
-
-    if (!authData?.user || !authData?.accessToken || !authData?.refreshToken) {
-      throw new Error('Registration response was incomplete');
-    }
-
-    persistSession(authData);
+    return {
+      message: response.data?.message || 'Account created successfully. Please sign in to continue.',
+    };
   };
 
-  const registerGarageOwner = async (payload: Record<string, unknown>) => {
+  const registerGarageOwner = async (payload: Record<string, unknown>): Promise<{ message: string }> => {
     const response = await axiosInstance.post(API_ENDPOINTS.AUTH.GARAGE_REGISTER, payload);
-    const authData = response.data?.data;
-
-    if (!authData?.user || !authData?.accessToken || !authData?.refreshToken) {
-      throw new Error('Registration response was incomplete');
-    }
-
-    persistSession(authData);
+    return {
+      message: response.data?.message || 'Registration submitted successfully. Please sign in to view your verification status.',
+    };
   };
 
   const adminLogin = async (email: string, password: string) => {
@@ -166,6 +159,17 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
+  const loginWithGoogle = async (idToken: string, role: AuthRole) => {
+    const response = await axiosInstance.post(API_ENDPOINTS.AUTH.GOOGLE_AUTH, { idToken, role });
+    const payload = response.data?.data;
+
+    if (!payload?.user || !payload?.accessToken || !payload?.refreshToken) {
+      throw new Error('Google authentication response was incomplete');
+    }
+
+    persistSession(payload);
+  };
+
   const value = useMemo<AuthContextValue>(
     () => ({
       user,
@@ -177,6 +181,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       adminLogin,
       logout,
       refreshAuth,
+      loginWithGoogle,
     }),
     [user, isAuthenticated, loading]
   );

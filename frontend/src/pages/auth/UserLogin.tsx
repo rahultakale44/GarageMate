@@ -1,27 +1,44 @@
-import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Mail, Lock, Eye, EyeOff, ArrowLeft, Loader2 } from 'lucide-react';
+import { Mail, Lock, Eye, EyeOff, ArrowLeft, Loader2, CheckCircle } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 
 const UserLogin = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { login } = useAuth();
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [successMessage, setSuccessMessage] = useState('');
   const [formData, setFormData] = useState({ email: '', password: '' });
+
+  useEffect(() => {
+    // Check for success message from registration
+    const state = location.state as { message?: string; email?: string } | null;
+    if (state?.message) {
+      setSuccessMessage(state.message);
+      if (state.email) {
+        setFormData(prev => ({ ...prev, email: state.email! }));
+      }
+      // Clear the state
+      window.history.replaceState({}, document.title);
+    }
+  }, [location]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError('');
+    setSuccessMessage('');
 
     try {
       await login(formData.email, formData.password);
       navigate('/redirect');
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unable to sign in');
+    } catch (err: any) {
+      const errorMessage = err?.response?.data?.message || err?.message || 'Unable to sign in';
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -86,6 +103,13 @@ const UserLogin = () => {
           </p>
 
           <form onSubmit={handleSubmit} className="space-y-6">
+            {successMessage && (
+              <div className="flex items-center gap-3 p-4 bg-green-50 border border-green-200 rounded-lg">
+                <CheckCircle className="w-5 h-5 text-green-600 flex-shrink-0" />
+                <p className="text-sm text-green-800">{successMessage}</p>
+              </div>
+            )}
+
             <div>
               <label className="block text-sm font-medium text-dark-700 mb-2">
                 Email

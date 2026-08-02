@@ -1,23 +1,38 @@
-import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { ArrowLeft, Mail, Lock, Eye, EyeOff, Loader2, Store } from 'lucide-react';
+import { ArrowLeft, Mail, Lock, Eye, EyeOff, Loader2, Store, CheckCircle } from 'lucide-react';
 import { useReducedMotion } from '../../utils/reducedMotion';
 import { useAuth } from '@/context/AuthContext';
 
 const GarageLogin = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const prefersReducedMotion = useReducedMotion();
   const { login } = useAuth();
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [successMessage, setSuccessMessage] = useState('');
   const [formData, setFormData] = useState({
     email: '',
     password: '',
     rememberMe: false,
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    // Check for success message from registration
+    const state = location.state as { message?: string; email?: string } | null;
+    if (state?.message) {
+      setSuccessMessage(state.message);
+      if (state.email) {
+        setFormData(prev => ({ ...prev, email: state.email! }));
+      }
+      // Clear the state
+      window.history.replaceState({}, document.title);
+    }
+  }, [location]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value, type, checked } = e.target;
@@ -52,15 +67,18 @@ const GarageLogin = () => {
     e.preventDefault();
 
     if (!validate()) return;
+    if (loading) return;
 
     setLoading(true);
     setError('');
+    setSuccessMessage('');
 
     try {
       await login(formData.email, formData.password);
       navigate('/redirect');
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unable to sign in');
+    } catch (err: any) {
+      const errorMessage = err?.response?.data?.message || err?.message || 'Unable to sign in';
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -153,6 +171,13 @@ const GarageLogin = () => {
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-5">
+            {successMessage && (
+              <div className="flex items-center gap-3 p-4 bg-green-50 border border-green-200 rounded-lg">
+                <CheckCircle className="w-5 h-5 text-green-600 flex-shrink-0" />
+                <p className="text-sm text-green-800">{successMessage}</p>
+              </div>
+            )}
+
             {/* Email */}
             <div>
               <label htmlFor="email" className="block text-sm font-medium text-dark-700 mb-2">
