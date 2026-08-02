@@ -40,6 +40,7 @@ export const API_ENDPOINTS = {
     GEOCODE: '/garages/geocode',
     LIST: '/garages',
     GET: (id: string) => `/garages/${id}`,
+    DETAIL: (id: string) => `/garages/${id}`,
     MY: '/garages/my/profile',
     UPDATE: '/garages/my/profile',
     TOGGLE_AVAILABILITY: '/garages/my/availability',

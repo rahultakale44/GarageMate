@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useCallback } from 'react';
 import axiosInstance from '@/lib/axios';
 import { API_ENDPOINTS } from '@/config/api';
 

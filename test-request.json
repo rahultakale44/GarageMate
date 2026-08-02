@@ -1,0 +1,10 @@
+{
+  "vehicleId": "test-vehicle-id",
+  "issueCategory": "TYRE_PUNCTURE",
+  "issueDescription": "Front left tyre is completely flat, unable to move the vehicle",
+  "latitude": 18.4723,
+  "longitude": 73.9385,
+  "address": "Shop No 5, Loni Kalbhor Road, Pune",
+  "urgency": "HIGH",
+  "garageId": "6a6edaa3fb11c25dfec22b43"
+}

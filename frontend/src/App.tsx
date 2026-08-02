@@ -23,6 +23,7 @@ const UserDashboard = lazy(() => import('./pages/user/UserDashboard'));
 const EmergencyRequestPage = lazy(() => import('./pages/user/EmergencyRequestPage'));
 const MyRequestsPage = lazy(() => import('./pages/user/MyRequestsPage'));
 const NearbyGaragesPage = lazy(() => import('./pages/user/NearbyGaragesPage'));
+const GarageDetailPage = lazy(() => import('./pages/user/GarageDetailPage'));
 
 // Garage pages
 const GarageDashboard = lazy(() => import('./pages/garage/GarageDashboard'));
@@ -99,6 +100,7 @@ function AppRoutes() {
               <Route path="/user/requests" element={<MyRequestsPage />} />
               <Route path="/user/requests/:id" element={<MyRequestsPage />} />
               <Route path="/user/nearby-garages" element={<NearbyGaragesPage />} />
+              <Route path="/user/garages/:garageId" element={<GarageDetailPage />} />
             </Route>
 
             <Route element={<ProtectedRoute allowedRoles={['GARAGE_OWNER']} />}>

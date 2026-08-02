@@ -632,7 +632,7 @@ const UserDashboard = () => {
               ) : (
                 <div className="divide-y divide-dark-200">
                   {nearbyGarages.map((garage) => (
-                    <div key={garage._id} className="p-6 hover:bg-dark-50 transition-colors">
+                    <div key={garage._id} className="p-6 hover:bg-dark-50 transition-colors cursor-pointer" onClick={() => navigate(`/user/garages/${garage._id}`)}>
                       <div className="flex items-start justify-between gap-4">
                         <div className="flex-1 min-w-0">
                           <div className="flex items-start gap-3 mb-3">
@@ -699,6 +699,35 @@ const UserDashboard = () => {
                               )}
                             </div>
                           )}
+                          
+                          <div className="mt-4 flex gap-2">
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                navigate(`/user/garages/${garage._id}`);
+                              }}
+                              className="flex-1 px-3 py-2 border border-dark-200 rounded-lg text-sm font-medium text-dark-700 hover:bg-dark-100 transition-colors"
+                            >
+                              View Details
+                            </button>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                navigate('/user/emergency', {
+                                  state: {
+                                    selectedGarageId: garage._id,
+                                    selectedGarageName: garage.name,
+                                    latitude: userLocation?.latitude,
+                                    longitude: userLocation?.longitude,
+                                    address: userLocation?.address,
+                                  },
+                                });
+                              }}
+                              className="flex-1 px-3 py-2 bg-primary-500 text-white rounded-lg text-sm font-medium hover:bg-primary-600 transition-colors"
+                            >
+                              Request Help
+                            </button>
+                          </div>
                         </div>
                       </div>
                     </div>
