@@ -102,7 +102,20 @@ const UserDashboard = () => {
     completedRequests: 0,
     vehicles: 0,
   });
-  const [loadingStats, setLoadingStats] = useState(false);
+  
+  // Nearby garages
+  const [nearbyGarages, setNearbyGarages] = useState<Array<{
+    _id: string;
+    name: string;
+    address: string;
+    distance?: number;
+    rating?: number;
+    reviewCount?: number;
+    isAvailable?: boolean;
+    visitingCharge?: number;
+    services?: string[];
+  }>>([]);
+  const [loadingNearbyGarages, setLoadingNearbyGarages] = useState(false);
 
   const navItems = [
     { icon: AlertCircle, label: 'Dashboard', active: true, path: '/user/dashboard' },
@@ -195,6 +208,7 @@ const UserDashboard = () => {
   
   const fetchNearbyGaragesCount = async (lat: number, lng: number) => {
     try {
+      setLoadingNearbyGarages(true);
       const response = await axiosInstance.get(API_ENDPOINTS.GARAGES.NEARBY, {
         params: {
           latitude: lat,
@@ -202,10 +216,13 @@ const UserDashboard = () => {
           radius: 10, // 10 km default
         },
       });
-      const garageCount = response.data?.data?.length || 0;
-      setStats(prev => ({ ...prev, nearbyGarages: garageCount }));
+      const garages = response.data?.data || [];
+      setStats(prev => ({ ...prev, nearbyGarages: garages.length }));
+      setNearbyGarages(garages.slice(0, 3)); // Top 3 nearest
     } catch {
-      // Silently fail
+      setNearbyGarages([]);
+    } finally {
+      setLoadingNearbyGarages(false);
     }
   };
 
@@ -519,8 +536,6 @@ const UserDashboard = () => {
 
           {/* Stats Grid */}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-          {/* Stats Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
@@ -584,6 +599,114 @@ const UserDashboard = () => {
               <h3 className="text-sm font-medium text-dark-600">My Vehicles</h3>
             </motion.div>
           </div>
+
+          {/* Nearby Garages Preview */}
+          {userLocation && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.5 }}
+              className="bg-white rounded-xl border border-dark-200 mb-8"
+            >
+              <div className="p-6 border-b border-dark-200 flex items-center justify-between">
+                <h3 className="text-lg font-semibold text-dark-900">Nearby Garages</h3>
+                <Link 
+                  to="/user/nearby-garages" 
+                  className="text-sm font-medium text-primary-600 hover:text-primary-700"
+                >
+                  View All
+                </Link>
+              </div>
+              
+              {loadingNearbyGarages ? (
+                <div className="flex items-center justify-center p-8 text-sm text-dark-600">
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Finding nearby garages...
+                </div>
+              ) : nearbyGarages.length === 0 ? (
+                <div className="p-6 text-center">
+                  <MapPin className="w-12 h-12 text-dark-300 mx-auto mb-3" />
+                  <p className="text-sm text-dark-600">No garages found within your area</p>
+                  <p className="text-xs text-dark-500 mt-1">Try searching in a wider radius</p>
+                </div>
+              ) : (
+                <div className="divide-y divide-dark-200">
+                  {nearbyGarages.map((garage) => (
+                    <div key={garage._id} className="p-6 hover:bg-dark-50 transition-colors">
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-start gap-3 mb-3">
+                            <div className="w-12 h-12 bg-primary-50 rounded-lg flex items-center justify-center flex-shrink-0">
+                              <MapPin className="w-6 h-6 text-primary-600" />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <h4 className="font-semibold text-dark-900">{garage.name}</h4>
+                              <p className="text-sm text-dark-600 truncate">{garage.address}</p>
+                            </div>
+                          </div>
+                          
+                          <div className="flex flex-wrap items-center gap-4 text-sm">
+                            {garage.distance !== undefined && (
+                              <div className="flex items-center gap-1 text-dark-600">
+                                <MapPin className="w-4 h-4" />
+                                <span>{garage.distance.toFixed(1)} km away</span>
+                              </div>
+                            )}
+                            
+                            {garage.rating !== undefined && (
+                              <div className="flex items-center gap-1 text-dark-600">
+                                <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
+                                <span>{garage.rating.toFixed(1)}</span>
+                                {garage.reviewCount !== undefined && (
+                                  <span className="text-dark-500">({garage.reviewCount})</span>
+                                )}
+                              </div>
+                            )}
+                            
+                            {garage.visitingCharge !== undefined && (
+                              <div className="text-dark-600">
+                                Visit: ₹{garage.visitingCharge}
+                              </div>
+                            )}
+                            
+                            <div className="ml-auto">
+                              {garage.isAvailable ? (
+                                <span className="px-3 py-1 bg-green-100 text-green-700 text-xs rounded-full">
+                                  Available
+                                </span>
+                              ) : (
+                                <span className="px-3 py-1 bg-red-100 text-red-700 text-xs rounded-full">
+                                  Busy
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                          
+                          {garage.services && garage.services.length > 0 && (
+                            <div className="mt-3 flex flex-wrap gap-2">
+                              {garage.services.slice(0, 3).map((service, idx) => (
+                                <span 
+                                  key={idx} 
+                                  className="px-2 py-1 bg-dark-100 text-dark-700 text-xs rounded"
+                                >
+                                  {service}
+                                </span>
+                              ))}
+                              {garage.services.length > 3 && (
+                                <span className="px-2 py-1 text-dark-500 text-xs">
+                                  +{garage.services.length - 3} more
+                                </span>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </motion.div>
+          )}
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
             <motion.div

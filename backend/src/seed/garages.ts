@@ -243,7 +243,6 @@ async function seedGarages() {
 
     let createdCount = 0;
     let updatedCount = 0;
-    let skippedCount = 0;
 
     for (const garageData of DEMO_GARAGES) {
       // Check if owner exists
