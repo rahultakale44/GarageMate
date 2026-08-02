@@ -60,9 +60,8 @@ const userSchema = new Schema<IUserDocument>(
   }
 );
 
-// Index for faster queries
-userSchema.index({ email: 1 });
-userSchema.index({ googleId: 1 });
+// Indexes are automatically created by unique: true on email and sparse: true on googleId
+// Additional indexes
 userSchema.index({ role: 1 });
 
 // Hash password before saving

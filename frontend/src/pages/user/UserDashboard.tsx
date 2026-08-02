@@ -32,6 +32,29 @@ interface VehicleRecord {
   notes?: string;
 }
 
+interface RequestRecord {
+  _id: string;
+  issueCategory: string;
+  status: string;
+  createdAt: string;
+  garageId?: { name?: string };
+}
+
+interface DashboardStats {
+  nearbyGarages: number;
+  activeRequests: number;
+  completedRequests: number;
+  vehicles: number;
+}
+
+interface UserLocation {
+  latitude: number;
+  longitude: number;
+  locality?: string;
+  city?: string;
+  address?: string;
+}
+
 interface VehicleFormState {
   vehicleType: string;
   brand: string;
@@ -66,6 +89,20 @@ const UserDashboard = () => {
   const [isVehicleModalOpen, setIsVehicleModalOpen] = useState(false);
   const [editingVehicle, setEditingVehicle] = useState<VehicleRecord | null>(null);
   const [vehicleForm, setVehicleForm] = useState<VehicleFormState>(defaultVehicleForm());
+  
+  // Location state
+  const [userLocation, setUserLocation] = useState<UserLocation | null>(null);
+  const [requestingLocation, setRequestingLocation] = useState(false);
+  const [locationError, setLocationError] = useState<string | null>(null);
+  
+  // Dashboard stats
+  const [stats, setStats] = useState<DashboardStats>({
+    nearbyGarages: 0,
+    activeRequests: 0,
+    completedRequests: 0,
+    vehicles: 0,
+  });
+  const [loadingStats, setLoadingStats] = useState(false);
 
   const navItems = [
     { icon: AlertCircle, label: 'Dashboard', active: true, path: '/user/dashboard' },
@@ -76,8 +113,101 @@ const UserDashboard = () => {
     { icon: Star, label: 'Reviews', path: '/user/dashboard' },
   ];
 
-  const [requests, setRequests] = useState<Array<{ _id: string; issueCategory: string; status: string; createdAt: string; garageId?: { name?: string } }>>([]);
+  const [requests, setRequests] = useState<RequestRecord[]>([]);
   const [loadingRequests, setLoadingRequests] = useState(false);
+  
+  // Load saved location from sessionStorage
+  useEffect(() => {
+    const savedLocation = sessionStorage.getItem('userLocation');
+    if (savedLocation) {
+      try {
+        setUserLocation(JSON.parse(savedLocation));
+      } catch {
+        // Invalid saved location
+      }
+    }
+  }, []);
+  
+  const handleUseCurrentLocation = () => {
+    if (!navigator.geolocation) {
+      setLocationError('Geolocation is not supported by your browser');
+      return;
+    }
+    
+    setRequestingLocation(true);
+    setLocationError(null);
+    
+    navigator.geolocation.getCurrentPosition(
+      async (position) => {
+        const { latitude, longitude } = position.coords;
+        
+        try {
+          // Call reverse geocoding API
+          const response = await axiosInstance.get(API_ENDPOINTS.GARAGES.REVERSE_GEOCODE, {
+            params: { latitude, longitude },
+          });
+          
+          const locationData: UserLocation = {
+            latitude,
+            longitude,
+            address: response.data?.data?.displayName || response.data?.data?.address,
+            locality: response.data?.data?.locality,
+            city: response.data?.data?.city,
+          };
+          
+          setUserLocation(locationData);
+          sessionStorage.setItem('userLocation', JSON.stringify(locationData));
+          
+          // Fetch nearby garages count
+          await fetchNearbyGaragesCount(latitude, longitude);
+        } catch (error) {
+          // Still save location even if reverse geocoding fails
+          const locationData: UserLocation = {
+            latitude,
+            longitude,
+            address: `${latitude.toFixed(4)}, ${longitude.toFixed(4)}`,
+          };
+          setUserLocation(locationData);
+          sessionStorage.setItem('userLocation', JSON.stringify(locationData));
+        } finally {
+          setRequestingLocation(false);
+        }
+      },
+      (error) => {
+        setRequestingLocation(false);
+        if (error.code === 1) {
+          setLocationError('Location permission denied. You can enter your location manually.');
+        } else if (error.code === 2) {
+          setLocationError('Location is currently unavailable.');
+        } else if (error.code === 3) {
+          setLocationError('Location request timed out.');
+        } else {
+          setLocationError('Unable to detect your location.');
+        }
+      },
+      {
+        enableHighAccuracy: true,
+        timeout: 10000,
+        maximumAge: 300000, // 5 minutes
+      }
+    );
+  };
+  
+  const fetchNearbyGaragesCount = async (lat: number, lng: number) => {
+    try {
+      const response = await axiosInstance.get(API_ENDPOINTS.GARAGES.NEARBY, {
+        params: {
+          latitude: lat,
+          longitude: lng,
+          radius: 10, // 10 km default
+        },
+      });
+      const garageCount = response.data?.data?.length || 0;
+      setStats(prev => ({ ...prev, nearbyGarages: garageCount }));
+    } catch {
+      // Silently fail
+    }
+  };
 
   const fetchVehicles = async () => {
     if (!user) {
@@ -107,7 +237,18 @@ const UserDashboard = () => {
     setLoadingRequests(true);
     try {
       const response = await axiosInstance.get(API_ENDPOINTS.REQUESTS.MY);
-      setRequests((response.data?.data || []).slice(0, 3));
+      const allRequests = response.data?.data || [];
+      setRequests(allRequests.slice(0, 3));
+      
+      // Update stats
+      const active = allRequests.filter((r: RequestRecord) => 
+        !['CANCELLED', 'CLOSED', 'PAID', 'SERVICE_COMPLETED'].includes(r.status)
+      ).length;
+      const completed = allRequests.filter((r: RequestRecord) => 
+        ['CLOSED', 'PAID', 'SERVICE_COMPLETED'].includes(r.status)
+      ).length;
+      
+      setStats(prev => ({ ...prev, activeRequests: active, completedRequests: completed }));
     } catch {
       setRequests([]);
     } finally {
@@ -118,7 +259,16 @@ const UserDashboard = () => {
   useEffect(() => {
     void fetchVehicles();
     void fetchRequests();
+    
+    // Fetch nearby garages if location is already saved
+    if (userLocation) {
+      void fetchNearbyGaragesCount(userLocation.latitude, userLocation.longitude);
+    }
   }, [user?._id]);
+  
+  useEffect(() => {
+    setStats(prev => ({ ...prev, vehicles: vehicles.length }));
+  }, [vehicles.length]);
 
   const openCreateModal = () => {
     setEditingVehicle(null);
@@ -268,6 +418,78 @@ const UserDashboard = () => {
         </header>
 
         <main className="p-4 md:p-6 lg:p-8">
+          {/* Location Card */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="bg-white rounded-2xl p-6 border border-dark-200 mb-6"
+          >
+            {!userLocation ? (
+              <div>
+                <div className="flex items-center gap-3 mb-4">
+                  <MapPin className="w-6 h-6 text-primary-600" />
+                  <div>
+                    <h3 className="text-lg font-semibold text-dark-900">Where are you right now?</h3>
+                    <p className="text-sm text-dark-600">We'll find the nearest garages for you</p>
+                  </div>
+                </div>
+                {locationError && (
+                  <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
+                    {locationError}
+                  </div>
+                )}
+                <button
+                  onClick={handleUseCurrentLocation}
+                  disabled={requestingLocation}
+                  className="px-6 py-3 bg-primary-500 text-white rounded-lg font-medium hover:bg-primary-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                >
+                  {requestingLocation ? (
+                    <>
+                      <Loader2 className="w-5 h-5 animate-spin" />
+                      Detecting location...
+                    </>
+                  ) : (
+                    <>
+                      <MapPin className="w-5 h-5" />
+                      Use My Current Location
+                    </>
+                  )}
+                </button>
+              </div>
+            ) : (
+              <div>
+                <div className="flex items-start justify-between gap-4 mb-3">
+                  <div className="flex items-start gap-3">
+                    <MapPin className="w-6 h-6 text-green-600 mt-1" />
+                    <div>
+                      <h3 className="text-lg font-semibold text-dark-900">
+                        You're currently near {userLocation.locality || userLocation.city || 'your location'}
+                      </h3>
+                      <p className="text-sm text-dark-600 mt-1">{userLocation.address}</p>
+                      <p className="text-xs text-dark-500 mt-2">
+                        {userLocation.latitude.toFixed(4)}, {userLocation.longitude.toFixed(4)}
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={handleUseCurrentLocation}
+                    disabled={requestingLocation}
+                    className="px-4 py-2 border border-dark-300 rounded-lg text-sm font-medium hover:bg-dark-50 transition-colors"
+                  >
+                    Refresh
+                  </button>
+                </div>
+                <Link
+                  to="/user/nearby-garages"
+                  className="inline-flex items-center gap-2 text-sm font-medium text-primary-600 hover:text-primary-700"
+                >
+                  Find nearby garages →
+                </Link>
+              </div>
+            )}
+          </motion.div>
+
+          {/* Emergency CTA */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -278,14 +500,27 @@ const UserDashboard = () => {
                 <h2 className="text-2xl font-bold mb-2">Need Emergency Help?</h2>
                 <p className="text-red-100">Get roadside assistance from nearby verified garages</p>
               </div>
-              <Link to="/user/emergency" className="px-6 py-3 bg-white text-red-600 rounded-lg font-semibold hover:bg-red-50 transition-colors whitespace-nowrap flex items-center gap-2">
+              <Link 
+                to={vehicles.length === 0 ? "#" : "/user/emergency"} 
+                onClick={(e) => {
+                  if (vehicles.length === 0) {
+                    e.preventDefault();
+                    alert('Please add a vehicle first before requesting emergency assistance.');
+                    setIsVehicleModalOpen(true);
+                  }
+                }}
+                className="px-6 py-3 bg-white text-red-600 rounded-lg font-semibold hover:bg-red-50 transition-colors whitespace-nowrap flex items-center gap-2"
+              >
                 <AlertCircle className="w-5 h-5" />
                 Get Help Now
               </Link>
             </div>
           </motion.div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+          {/* Stats Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+          {/* Stats Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
@@ -296,9 +531,12 @@ const UserDashboard = () => {
                 <div className="p-3 bg-blue-50 rounded-lg">
                   <MapPin className="w-6 h-6 text-blue-600" />
                 </div>
-                <span className="text-2xl font-bold text-dark-900">12</span>
+                <span className="text-2xl font-bold text-dark-900">{stats.nearbyGarages}</span>
               </div>
               <h3 className="text-sm font-medium text-dark-600">Nearby Garages</h3>
+              {!userLocation && (
+                <p className="text-xs text-dark-500 mt-1">Enable location to see garages</p>
+              )}
             </motion.div>
 
             <motion.div
@@ -308,10 +546,10 @@ const UserDashboard = () => {
               className="bg-white rounded-xl p-6 border border-dark-200"
             >
               <div className="flex items-center justify-between mb-4">
-                <div className="p-3 bg-green-50 rounded-lg">
-                  <Clock className="w-6 h-6 text-green-600" />
+                <div className="p-3 bg-orange-50 rounded-lg">
+                  <Clock className="w-6 h-6 text-orange-600" />
                 </div>
-                <span className="text-2xl font-bold text-dark-900">3</span>
+                <span className="text-2xl font-bold text-dark-900">{stats.activeRequests}</span>
               </div>
               <h3 className="text-sm font-medium text-dark-600">Active Requests</h3>
             </motion.div>
@@ -323,10 +561,25 @@ const UserDashboard = () => {
               className="bg-white rounded-xl p-6 border border-dark-200"
             >
               <div className="flex items-center justify-between mb-4">
+                <div className="p-3 bg-green-50 rounded-lg">
+                  <Star className="w-6 h-6 text-green-600" />
+                </div>
+                <span className="text-2xl font-bold text-dark-900">{stats.completedRequests}</span>
+              </div>
+              <h3 className="text-sm font-medium text-dark-600">Completed Requests</h3>
+            </motion.div>
+
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.4 }}
+              className="bg-white rounded-xl p-6 border border-dark-200"
+            >
+              <div className="flex items-center justify-between mb-4">
                 <div className="p-3 bg-primary-50 rounded-lg">
                   <Car className="w-6 h-6 text-primary-600" />
                 </div>
-                <span className="text-2xl font-bold text-dark-900">{vehicles.length}</span>
+                <span className="text-2xl font-bold text-dark-900">{stats.vehicles}</span>
               </div>
               <h3 className="text-sm font-medium text-dark-600">My Vehicles</h3>
             </motion.div>
@@ -336,7 +589,7 @@ const UserDashboard = () => {
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.4 }}
+              transition={{ delay: 0.5 }}
               className="bg-white rounded-xl border border-dark-200"
             >
               <div className="p-6 border-b border-dark-200 flex items-center justify-between">
@@ -366,7 +619,7 @@ const UserDashboard = () => {
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.5 }}
+              transition={{ delay: 0.6 }}
               className="bg-white rounded-xl border border-dark-200"
             >
               <div className="p-6 border-b border-dark-200 flex items-center justify-between">

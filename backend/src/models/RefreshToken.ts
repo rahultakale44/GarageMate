@@ -29,7 +29,8 @@ const refreshTokenSchema = new Schema<IRefreshTokenDocument>({
   },
 });
 
-refreshTokenSchema.index({ token: 1 });
+// Index on token is created automatically by unique: true
+// Additional indexes
 refreshTokenSchema.index({ userId: 1 });
 refreshTokenSchema.index({ expiresAt: 1 });
 
