@@ -2,19 +2,42 @@ import NodeCache from 'node-cache';
 
 interface GeocodeResult {
   displayName: string;
+  locality?: string;
+  city?: string;
+  state?: string;
+  pincode?: string;
+  landmark?: string;
   latitude: number;
   longitude: number;
   address: string;
 }
 
+interface NominatimAddress {
+  road?: string;
+  suburb?: string;
+  neighbourhood?: string;
+  village?: string;
+  town?: string;
+  city?: string;
+  city_district?: string;
+  county?: string;
+  state?: string;
+  postcode?: string;
+  country?: string;
+}
+
 interface NominatimReverseResponse {
   display_name?: string;
+  address?: NominatimAddress;
+  lat?: string;
+  lon?: string;
 }
 
 interface NominatimSearchResult {
   display_name: string;
   lat: string;
   lon: string;
+  address?: NominatimAddress;
 }
 
 const isNominatimReverseResponse = (value: unknown): value is NominatimReverseResponse => {
@@ -57,66 +80,218 @@ const isRateLimited = (key: string) => {
   return false;
 };
 
-export const reverseGeocode = async ({ latitude, longitude }: { latitude: number; longitude: number }): Promise<GeocodeResult> => {
+/**
+ * Parse Nominatim address to extract locality, city, state, pincode
+ */
+const parseAddress = (address?: NominatimAddress): {
+  locality?: string;
+  city?: string;
+  state?: string;
+  pincode?: string;
+  landmark?: string;
+} => {
+  if (!address) {
+    return {};
+  }
+
+  // Locality: suburb, neighbourhood, village, town, city_district (in priority order)
+  const locality =
+    address.suburb ||
+    address.neighbourhood ||
+    address.village ||
+    address.town ||
+    address.city_district ||
+    undefined;
+
+  // City: city, town, county (in priority order)
+  const city = address.city || address.town || address.county || undefined;
+
+  // State
+  const state = address.state || undefined;
+
+  // Pincode
+  const pincode = address.postcode || undefined;
+
+  // Landmark: road name
+  const landmark = address.road || undefined;
+
+  return { locality, city, state, pincode, landmark };
+};
+
+/**
+ * Compose a readable display name from parsed address components
+ */
+const composeDisplayName = (
+  locality?: string,
+  city?: string,
+  state?: string,
+  pincode?: string
+): string => {
+  const parts: string[] = [];
+  if (locality) parts.push(locality);
+  if (city && city !== locality) parts.push(city);
+  if (state) parts.push(state);
+  if (pincode) parts.push(pincode);
+  return parts.join(', ') || 'Location detected';
+};
+
+/**
+ * Reverse geocode coordinates to address using Nominatim
+ */
+export const reverseGeocode = async ({
+  latitude,
+  longitude,
+}: {
+  latitude: number;
+  longitude: number;
+}): Promise<GeocodeResult> => {
+  // Validate coordinates
+  if (latitude < -90 || latitude > 90 || longitude < -180 || longitude > 180) {
+    throw new Error('Invalid coordinates');
+  }
+
+  // Check cache
   const key = `reverse:${latitude.toFixed(4)}:${longitude.toFixed(4)}`;
   const cached = cache.get<GeocodeResult>(key);
   if (cached) {
     return cached;
   }
 
-  const response = await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${latitude}&lon=${longitude}`);
-  if (!response.ok) {
-    return {
-      displayName: 'Address unavailable',
+  try {
+    // Call Nominatim with proper headers and parameters
+    const url = new URL('https://nominatim.openstreetmap.org/reverse');
+    url.searchParams.set('format', 'jsonv2');
+    url.searchParams.set('lat', latitude.toString());
+    url.searchParams.set('lon', longitude.toString());
+    url.searchParams.set('zoom', '18');
+    url.searchParams.set('addressdetails', '1');
+
+    const response = await fetch(url.toString(), {
+      headers: {
+        'User-Agent': 'GarageMate/1.0 (Roadside Assistance Platform)',
+        'Accept-Language': 'en',
+        Accept: 'application/json',
+      },
+      signal: AbortSignal.timeout(10000), // 10 second timeout
+    });
+
+    if (!response.ok) {
+      console.error(`Nominatim reverse geocode failed: ${response.status} ${response.statusText}`);
+      // Return fallback with coordinates
+      return {
+        displayName: `Location: ${latitude.toFixed(5)}, ${longitude.toFixed(5)}`,
+        latitude,
+        longitude,
+        address: `${latitude.toFixed(5)}, ${longitude.toFixed(5)}`,
+      };
+    }
+
+    const payload: unknown = await response.json();
+
+    if (!isNominatimReverseResponse(payload)) {
+      console.error('Invalid Nominatim response format');
+      return {
+        displayName: `Location: ${latitude.toFixed(5)}, ${longitude.toFixed(5)}`,
+        latitude,
+        longitude,
+        address: `${latitude.toFixed(5)}, ${longitude.toFixed(5)}`,
+      };
+    }
+
+    // Parse address components
+    const { locality, city, state, pincode, landmark } = parseAddress(payload.address);
+
+    // Use Nominatim display_name or compose from components
+    const displayName =
+      payload.display_name || composeDisplayName(locality, city, state, pincode);
+
+    const result: GeocodeResult = {
+      displayName,
+      locality,
+      city,
+      state,
+      pincode,
+      landmark,
       latitude,
       longitude,
-      address: 'Address unavailable',
+      address: displayName,
+    };
+
+    // Cache the result
+    cache.set(key, result);
+    return result;
+  } catch (error) {
+    console.error('Reverse geocode error:', error);
+    // Return fallback with coordinates instead of failing
+    return {
+      displayName: `Location: ${latitude.toFixed(5)}, ${longitude.toFixed(5)}`,
+      latitude,
+      longitude,
+      address: `${latitude.toFixed(5)}, ${longitude.toFixed(5)}`,
     };
   }
-
-  const payload: unknown = await response.json();
-  const displayName = isNominatimReverseResponse(payload) && payload.display_name
-    ? payload.display_name
-    : 'Address unavailable';
-  const result = {
-    displayName,
-    latitude,
-    longitude,
-    address: displayName,
-  };
-
-  cache.set(key, result);
-  return result;
 };
 
+/**
+ * Forward geocode (search) address to coordinates using Nominatim
+ */
 export const searchGeocode = async (query: string): Promise<GeocodeResult[]> => {
-  const cacheKey = `search:${query.toLowerCase()}`;
+  const cacheKey = `search:${query.toLowerCase().trim()}`;
   const cached = cache.get<GeocodeResult[]>(cacheKey);
   if (cached) {
     return cached;
   }
 
-  const response = await fetch(`https://nominatim.openstreetmap.org/search?format=jsonv2&limit=5&q=${encodeURIComponent(query)}`);
-  if (!response.ok) {
+  try {
+    const url = new URL('https://nominatim.openstreetmap.org/search');
+    url.searchParams.set('format', 'jsonv2');
+    url.searchParams.set('limit', '5');
+    url.searchParams.set('addressdetails', '1');
+    url.searchParams.set('q', query);
+
+    const response = await fetch(url.toString(), {
+      headers: {
+        'User-Agent': 'GarageMate/1.0 (Roadside Assistance Platform)',
+        'Accept-Language': 'en',
+        Accept: 'application/json',
+      },
+      signal: AbortSignal.timeout(10000), // 10 second timeout
+    });
+
+    if (!response.ok) {
+      console.error(`Nominatim search failed: ${response.status} ${response.statusText}`);
+      return [];
+    }
+
+    const payload: unknown = await response.json();
+    const results = parseNominatimSearchResults(payload).map((item) => {
+      const { locality, city, state, pincode, landmark } = parseAddress(item.address);
+
+      return {
+        displayName: item.display_name,
+        locality,
+        city,
+        state,
+        pincode,
+        landmark,
+        latitude: Number(item.lat),
+        longitude: Number(item.lon),
+        address: item.display_name,
+      };
+    });
+
+    cache.set(cacheKey, results);
+    return results;
+  } catch (error) {
+    console.error('Forward geocode error:', error);
     return [];
   }
-
-  const payload: unknown = await response.json();
-  const result = parseNominatimSearchResults(payload).map((item) => ({
-    displayName: item.display_name,
-    latitude: Number(item.lat),
-    longitude: Number(item.lon),
-    address: item.display_name,
-  }));
-
-  cache.set(cacheKey, result);
-  return result;
 };
 
 export const withRateLimit = (req: any, handler: () => Promise<any>) => {
-  const key = getClientKey(req.ip || req.headers['x-forwarded-for'] as string | undefined);
+  const key = getClientKey(req.ip || (req.headers['x-forwarded-for'] as string | undefined));
   if (isRateLimited(key)) {
-    throw new Error('Rate limit exceeded');
+    throw new Error('Rate limit exceeded. Please wait a moment.');
   }
   return handler();
 };

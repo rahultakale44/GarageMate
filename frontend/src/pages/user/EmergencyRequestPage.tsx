@@ -74,6 +74,8 @@ const EmergencyRequestPage = () => {
     locationState?.longitude?.toString() || savedLocation?.longitude.toString() || ''
   );
   const [images, setImages] = useState<string[]>([]);
+  const [addressLookupLoading, setAddressLookupLoading] = useState(false);
+  const [addressLookupError, setAddressLookupError] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchVehicles = async () => {
@@ -102,11 +104,61 @@ const EmergencyRequestPage = () => {
   }, [user]);
 
   const handleLocationDetect = async () => {
+    setAddressLookupLoading(true);
+    setAddressLookupError(null);
+    
     const success = await requestLocation();
+    
     if (success && savedLocation) {
       setLatitude(savedLocation.latitude.toString());
       setLongitude(savedLocation.longitude.toString());
-      setAddress(savedLocation.address || '');
+      
+      // Set address if available, otherwise show coordinates
+      if (savedLocation.address) {
+        setAddress(savedLocation.address);
+      } else {
+        setAddress(`${savedLocation.latitude.toFixed(5)}, ${savedLocation.longitude.toFixed(5)}`);
+        setAddressLookupError('Location detected but address lookup failed. You can edit the address manually.');
+      }
+    }
+    
+    setAddressLookupLoading(false);
+  };
+
+  const handleRetryAddressLookup = async () => {
+    if (!latitude || !longitude) {
+      setAddressLookupError('Please enter coordinates first.');
+      return;
+    }
+
+    const lat = Number(latitude);
+    const lng = Number(longitude);
+
+    if (lat < -90 || lat > 90 || lng < -180 || lng > 180) {
+      setAddressLookupError('Invalid coordinates.');
+      return;
+    }
+
+    setAddressLookupLoading(true);
+    setAddressLookupError(null);
+
+    try {
+      const response = await axiosInstance.get(API_ENDPOINTS.GARAGES.REVERSE_GEOCODE, {
+        params: { latitude: lat, longitude: lng },
+      });
+
+      const data = response.data?.data;
+      if (data?.displayName || data?.address) {
+        setAddress(data.displayName || data.address);
+      } else {
+        setAddress(`${lat.toFixed(5)}, ${lng.toFixed(5)}`);
+        setAddressLookupError('Address not found. Please enter manually.');
+      }
+    } catch (error) {
+      setAddress(`${lat.toFixed(5)}, ${lng.toFixed(5)}`);
+      setAddressLookupError('Address lookup failed. You can enter the address manually.');
+    } finally {
+      setAddressLookupLoading(false);
     }
   };
 
@@ -358,21 +410,37 @@ const EmergencyRequestPage = () => {
                 <MapPin className="h-5 w-5" />
                 <h2 className="text-lg font-semibold text-dark-900">Location</h2>
               </div>
+              
               <button
                 type="button"
                 onClick={handleLocationDetect}
-                disabled={locationHookLoading}
+                disabled={locationHookLoading || addressLookupLoading}
                 className="w-full rounded-lg border border-primary-200 bg-primary-50 px-3 py-2 text-sm font-medium text-primary-700 hover:bg-primary-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {locationHookLoading ? (
+                {locationHookLoading || addressLookupLoading ? (
                   <span className="flex items-center justify-center gap-2">
                     <Loader2 className="h-4 w-4 animate-spin" />
-                    Detecting location
+                    {locationHookLoading ? 'Detecting location…' : 'Looking up address…'}
                   </span>
                 ) : (
                   'Use my current location'
                 )}
               </button>
+              
+              {addressLookupError && (
+                <div className="mt-3 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                  <p className="text-xs text-yellow-800 mb-2">{addressLookupError}</p>
+                  <button
+                    type="button"
+                    onClick={handleRetryAddressLookup}
+                    disabled={addressLookupLoading}
+                    className="text-xs text-yellow-700 hover:text-yellow-900 font-medium underline"
+                  >
+                    Retry address lookup
+                  </button>
+                </div>
+              )}
+              
               <div className="mt-4 grid gap-4 md:grid-cols-2">
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-dark-700">Latitude</label>
