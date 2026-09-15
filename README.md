@@ -1,43 +1,43 @@
 # GarageMate – Hyperlocal Roadside Assistance and Garage Discovery Platform
 
-## 🚗 Project Overview
+##  Project Overview
 
 GarageMate is a comprehensive full-stack web application that connects stranded vehicle owners with nearby verified garages and provides real-time roadside assistance. The platform enables users to discover local garages, request emergency help, track mechanics, receive digital quotations, and complete secure online payments.
 
-## ✨ Core Features
+##  Core Features
 
 ### For Users
-- 🔍 Discover nearby verified garages based on live location
-- 🗺️ Interactive map view with real-time garage locations
-- 🆘 Request emergency roadside assistance
-- 📍 Track assigned mechanic in real-time
-- 🚗 Manage multiple vehicles
-- 💬 In-app chat with garage owners
-- 📄 Receive and approve digital quotations
-- 💳 Secure payment integration (Razorpay)
-- ⭐ Rate and review garages
-- 📱 Real-time notifications
+-  Discover nearby verified garages based on live location
+-  Interactive map view with real-time garage locations
+-  Request emergency roadside assistance
+-  Track assigned mechanic in real-time
+-  Manage multiple vehicles
+-  In-app chat with garage owners
+-  Receive and approve digital quotations
+-  Secure payment integration (Razorpay)
+-  Rate and review garages
+-  Real-time notifications
 
 ### For Garage Owners
-- 📋 Receive and manage service requests
-- 👨‍🔧 Assign mechanics to jobs
-- 📍 Share live mechanic location
-- 💰 Create detailed quotations
-- 📊 Track earnings and analytics
-- ✅ Manage garage profile and services
-- 🔔 Real-time request alerts
-- 📸 Upload verification documents
+-  Receive and manage service requests
+-  Assign mechanics to jobs
+-  Share live mechanic location
+-  Create detailed quotations
+-  Track earnings and analytics
+-  Manage garage profile and services
+-  Real-time request alerts
+-  Upload verification documents
 
 ### For Administrators
-- ✅ Verify and approve garages
-- 👥 Manage users and garage owners
-- 📊 Platform analytics and insights
-- 💳 Monitor payments and transactions
-- 🛡️ Handle complaints and disputes
-- 🗺️ City-wise garage distribution
-- 📈 Growth metrics and reports
+-  Verify and approve garages
+-  Manage users and garage owners
+-  Platform analytics and insights
+-  Monitor payments and transactions
+-  Handle complaints and disputes
+-  City-wise garage distribution
+-  Growth metrics and reports
 
-## 🛠️ Technology Stack
+##  Technology Stack
 
 ### Frontend
 - **Framework:** React.js with TypeScript
@@ -119,7 +119,7 @@ garagemate/
 └── README.md
 ```
 
-## 🚀 Quick Start
+##  Quick Start
 
 ### Prerequisites
 - Node.js (v18 or higher)
@@ -239,13 +239,13 @@ npm run dev
 
 Frontend will run at `http://localhost:5173`
 
-## 🔐 Default Admin Credentials
+##  Default Admin Credentials
 
 After running the seed script:
 - **Email:** admin@garagemate.com
 - **Password:** Admin@123456
 
-## 🎯 User Roles
+##  User Roles
 
 The application has three distinct roles with separate authentication and dashboards:
 
@@ -253,7 +253,7 @@ The application has three distinct roles with separate authentication and dashbo
 2. **GARAGE_OWNER** - Garage owners providing services
 3. **ADMIN** - Platform administrators
 
-## 📱 Application Flow
+##  Application Flow
 
 ### Emergency Assistance Request Flow
 1. User selects vehicle and issue category
@@ -273,7 +273,7 @@ The application has three distinct roles with separate authentication and dashbo
 15. Request closes
 16. User submits review
 
-## 🗺️ Maps Integration
+##  Maps Integration
 
 The application uses **Mappls Maps SDK** as the primary mapping solution with Google Maps as fallback.
 
@@ -285,7 +285,7 @@ Features:
 - Distance estimation
 - Manual pin adjustment
 
-## 💳 Payment Integration
+##  Payment Integration
 
 Razorpay integration handles two payment types:
 
@@ -294,7 +294,7 @@ Razorpay integration handles two payment types:
 
 All payments are verified server-side with signature validation.
 
-## 🔔 Real-Time Features
+##  Real-Time Features
 
 Socket.IO powers real-time functionality:
 - Instant request notifications
@@ -303,7 +303,7 @@ Socket.IO powers real-time functionality:
 - Status updates
 - Payment confirmations
 
-## 🧪 Testing
+##  Testing
 
 Run backend tests:
 ```bash
@@ -313,7 +313,7 @@ npm test
 
 For detailed testing instructions, see [docs/TESTING_GUIDE.md](docs/TESTING_GUIDE.md)
 
-## 📦 Production Build
+##  Production Build
 
 Build frontend for production:
 ```bash
@@ -328,7 +328,7 @@ npm run build
 npm start
 ```
 
-## 🚀 Deployment
+##  Deployment
 
 ### Frontend (Vercel)
 1. Connect GitHub repository to Vercel
@@ -343,7 +343,7 @@ npm start
 
 For detailed deployment instructions, see [docs/DEPLOYMENT_GUIDE.md](docs/DEPLOYMENT_GUIDE.md)
 
-## 📚 API Documentation
+##  API Documentation
 
 Comprehensive API documentation is available at [docs/API_DOCUMENTATION.md](docs/API_DOCUMENTATION.md)
 
@@ -360,7 +360,7 @@ Main endpoints:
 - `/reviews/*` - Reviews and ratings
 - `/admin/*` - Admin operations
 
-## 🖼️ Image Configuration
+##  Image Configuration
 
 All image URLs are centralized in `frontend/src/config/imageData.ts` for easy replacement:
 
@@ -378,7 +378,7 @@ Real local garage images can be added later by:
 2. Updating `imageData.ts` configuration
 3. Or uploading through garage owner interface
 
-## 🔒 Security Features
+##  Security Features
 
 - Password hashing with bcrypt
 - JWT access and refresh tokens
@@ -396,7 +396,7 @@ Real local garage images can be added later by:
 
 None - Complete implementation ready for production use.
 
-## 🔮 Future Enhancements
+##  Future Enhancements
 
 - SMS notifications via Twilio
 - WhatsApp notifications
@@ -409,20 +409,9 @@ None - Complete implementation ready for production use.
 - Loyalty programs
 - Referral system
 
-## 📄 License
+##  License
 
 Private - All rights reserved
 
-## 👥 Contributing
-
-This is a private project. For access requests, contact the development team.
-
-## 📞 Support
-
-For technical support or inquiries:
-- Email: support@garagemate.com
-- Documentation: See `/docs` folder
-
----
 
 **Built with ❤️ for safer roadside assistance**
