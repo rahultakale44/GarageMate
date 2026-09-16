@@ -290,6 +290,9 @@ async function seedGarages() {
           isAvailable: true,
           rating: 4.0 + Math.random(), // Random rating 4.0-5.0
           reviewCount: Math.floor(Math.random() * 50) + 10, // Random 10-60 reviews
+          isDemo: true,
+          ownerConnected: false,
+          dispatchEnabled: false,
         });
         createdCount++;
         console.log(`✅ Created garage: ${garageData.name} at ${garageData.locality}`);
@@ -297,6 +300,9 @@ async function seedGarages() {
         // Update existing garage to ensure it's approved and available
         garage.verificationStatus = VerificationStatus.APPROVED;
         garage.isAvailable = true;
+        garage.isDemo = true;
+        garage.ownerConnected = false;
+        garage.dispatchEnabled = false;
         await garage.save();
         updatedCount++;
         console.log(`♻️  Updated garage: ${garageData.name}`);

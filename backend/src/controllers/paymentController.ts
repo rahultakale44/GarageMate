@@ -174,16 +174,68 @@ export const verifyPayment = asyncHandler(async (req: AuthRequest, res: Response
   }
 
   if (payment.type === PaymentType.BOOKING_FEE) {
-    request.status = RequestStatus.SEARCHING_GARAGE;
-    request.statusHistory.push({
-      status: RequestStatus.SEARCHING_GARAGE,
-      updatedBy: req.user!.userId as any,
-      updatedAt: new Date(),
-      notes: 'Booking fee paid',
-    });
-    await request.save();
+    // Determine if this is a direct garage request or broadcast
+    if (request.garageId) {
+      // Direct garage request
+      request.status = RequestStatus.GARAGE_SELECTED;
+      request.statusHistory.push({
+        status: RequestStatus.GARAGE_SELECTED,
+        updatedBy: req.user!.userId as any,
+        updatedAt: new Date(),
+        notes: 'Booking fee paid - Direct garage request',
+      });
+      await request.save();
 
-    // TODO: Notify nearby garages via Socket.IO
+      // Notify selected garage
+      const garage = await Garage.findById(request.garageId).populate('owner');
+      if (garage && garage.owner) {
+        await createNotification({
+          recipient: (garage.owner as any)._id || garage.owner,
+          recipientRole: UserRole.GARAGE_OWNER,
+          title: 'New Request Received',
+          message: `You have received a new assistance request`,
+          type: NotificationType.REQUEST_CREATED,
+          redirectUrl: `/garage/requests/${request._id}`,
+        });
+      }
+    } else {
+      // Broadcast request - find eligible garages
+      request.status = RequestStatus.BROADCASTED;
+      request.statusHistory.push({
+        status: RequestStatus.BROADCASTED,
+        updatedBy: req.user!.userId as any,
+        updatedAt: new Date(),
+        notes: 'Booking fee paid - Broadcasting to eligible garages',
+      });
+      await request.save();
+
+      // Find eligible garages near the request location
+      const eligibleGarages = await Garage.find({
+        verificationStatus: 'APPROVED',
+        isAvailable: true,
+        location: {
+          $near: {
+            $geometry: {
+              type: 'Point',
+              coordinates: request.location.coordinates,
+            },
+            $maxDistance: 20000, // 20km max
+          },
+        },
+      }).limit(10);
+
+      // Notify eligible garages
+      for (const garage of eligibleGarages) {
+        await createNotification({
+          recipient: garage.owner,
+          recipientRole: UserRole.GARAGE_OWNER,
+          title: 'New Broadcast Request',
+          message: `A customer needs assistance nearby. Submit your offer!`,
+          type: NotificationType.REQUEST_BROADCASTED,
+          redirectUrl: `/garage/requests/${request._id}`,
+        });
+      }
+    }
   } else if (payment.type === PaymentType.FINAL_SERVICE_PAYMENT) {
     request.status = RequestStatus.PAID;
     request.statusHistory.push({

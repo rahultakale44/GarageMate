@@ -14,9 +14,11 @@ import { createNotification } from '../services/notificationService';
 const isValidTransition = (currentStatus: RequestStatus, nextStatus: RequestStatus) => {
   const allowedTransitions: Record<RequestStatus, RequestStatus[]> = {
     [RequestStatus.DRAFT]: [RequestStatus.PAYMENT_PENDING, RequestStatus.CANCELLED],
-    [RequestStatus.PAYMENT_PENDING]: [RequestStatus.SEARCHING_GARAGE, RequestStatus.CANCELLED],
-    [RequestStatus.SEARCHING_GARAGE]: [RequestStatus.REQUEST_SENT, RequestStatus.CANCELLED],
-    [RequestStatus.REQUEST_SENT]: [RequestStatus.GARAGE_ACCEPTED, RequestStatus.CANCELLED],
+    [RequestStatus.PAYMENT_PENDING]: [RequestStatus.SEARCHING_GARAGES, RequestStatus.CANCELLED],
+    [RequestStatus.SEARCHING_GARAGES]: [RequestStatus.BROADCASTED, RequestStatus.GARAGE_SELECTED, RequestStatus.CANCELLED],
+    [RequestStatus.BROADCASTED]: [RequestStatus.OFFERS_RECEIVED, RequestStatus.EXPIRED, RequestStatus.CANCELLED],
+    [RequestStatus.OFFERS_RECEIVED]: [RequestStatus.GARAGE_SELECTED, RequestStatus.EXPIRED, RequestStatus.CANCELLED],
+    [RequestStatus.GARAGE_SELECTED]: [RequestStatus.GARAGE_ACCEPTED, RequestStatus.REJECTED, RequestStatus.CANCELLED],
     [RequestStatus.GARAGE_ACCEPTED]: [RequestStatus.MECHANIC_ASSIGNED, RequestStatus.CANCELLED],
     [RequestStatus.MECHANIC_ASSIGNED]: [RequestStatus.MECHANIC_ON_THE_WAY, RequestStatus.CANCELLED],
     [RequestStatus.MECHANIC_ON_THE_WAY]: [RequestStatus.MECHANIC_ARRIVED, RequestStatus.CANCELLED],
@@ -30,6 +32,8 @@ const isValidTransition = (currentStatus: RequestStatus, nextStatus: RequestStat
     [RequestStatus.PAID]: [RequestStatus.CLOSED, RequestStatus.DISPUTED],
     [RequestStatus.CLOSED]: [],
     [RequestStatus.CANCELLED]: [],
+    [RequestStatus.REJECTED]: [],
+    [RequestStatus.EXPIRED]: [],
     [RequestStatus.DISPUTED]: [],
   };
 
@@ -50,6 +54,17 @@ export const createRequest = asyncHandler(async (req: AuthRequest, res: Response
     throw new ApiError(404, 'Vehicle not found');
   }
 
+  // If garageId provided, verify it's valid and approved
+  if (validatedData.garageId) {
+    const garage = await Garage.findById(validatedData.garageId);
+    if (!garage) {
+      throw new ApiError(404, 'Selected garage not found');
+    }
+    if (garage.verificationStatus !== 'APPROVED') {
+      throw new ApiError(400, 'Selected garage is not approved');
+    }
+  }
+
   const request = await AssistanceRequest.create({
     userId: req.user!.userId,
     vehicleId: validatedData.vehicleId,
@@ -68,15 +83,10 @@ export const createRequest = asyncHandler(async (req: AuthRequest, res: Response
     pincode: validatedData.pincode,
     urgency: validatedData.urgency || 'MEDIUM',
     bookingFee: DEFAULT_BOOKING_FEE,
-    status: RequestStatus.PAYMENT_PENDING,
+    status: RequestStatus.DRAFT,
     statusHistory: [
       {
         status: RequestStatus.DRAFT,
-        updatedBy: req.user!.userId,
-        updatedAt: new Date(),
-      },
-      {
-        status: RequestStatus.PAYMENT_PENDING,
         updatedBy: req.user!.userId,
         updatedAt: new Date(),
       },
@@ -85,7 +95,7 @@ export const createRequest = asyncHandler(async (req: AuthRequest, res: Response
 
   res.status(201).json({
     success: true,
-    message: 'Request created successfully. Please complete payment.',
+    message: 'Request created successfully.',
     data: request,
   });
 });
@@ -129,8 +139,10 @@ export const getGarageRequests = asyncHandler(async (req: AuthRequest, res: Resp
     filters.status = {
       $in: [
         RequestStatus.PAYMENT_PENDING,
-        RequestStatus.SEARCHING_GARAGE,
-        RequestStatus.REQUEST_SENT,
+        RequestStatus.SEARCHING_GARAGES,
+        RequestStatus.BROADCASTED,
+        RequestStatus.OFFERS_RECEIVED,
+        RequestStatus.GARAGE_SELECTED,
         RequestStatus.GARAGE_ACCEPTED,
         RequestStatus.MECHANIC_ASSIGNED,
         RequestStatus.MECHANIC_ON_THE_WAY,
@@ -251,13 +263,13 @@ export const rejectRequest = asyncHandler(async (req: AuthRequest, res: Response
     throw new ApiError(404, 'Request not found');
   }
 
-  if (!isValidTransition(request.status as RequestStatus, RequestStatus.REQUEST_SENT)) {
+  if (!isValidTransition(request.status as RequestStatus, RequestStatus.REJECTED)) {
     throw new ApiError(400, 'Cannot reject this request');
   }
 
-  request.status = RequestStatus.REQUEST_SENT;
+  request.status = RequestStatus.REJECTED;
   request.statusHistory.push({
-    status: RequestStatus.REQUEST_SENT,
+    status: RequestStatus.REJECTED,
     updatedBy: req.user!.userId as any,
     updatedAt: new Date(),
     notes: 'Garage rejected the request',

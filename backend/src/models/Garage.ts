@@ -45,6 +45,9 @@ export interface IGarageDocument extends Document {
   isAvailable: boolean;
   visitingCharge: number;
   servicePricing?: Record<string, number>;
+  isDemo: boolean;
+  ownerConnected: boolean;
+  dispatchEnabled: boolean;
 }
 
 const garageSchema = new Schema<IGarageDocument>(
@@ -169,6 +172,18 @@ const garageSchema = new Schema<IGarageDocument>(
     servicePricing: {
       type: Schema.Types.Mixed,
       default: {},
+    },
+    isDemo: {
+      type: Boolean,
+      default: false,
+    },
+    ownerConnected: {
+      type: Boolean,
+      default: false,
+    },
+    dispatchEnabled: {
+      type: Boolean,
+      default: false,
     },
   },
   {
