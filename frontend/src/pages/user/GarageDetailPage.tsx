@@ -240,6 +240,15 @@ const GarageDetailPage = () => {
                 </div>
               </div>
 
+              {isDev && garage.name.toLowerCase().includes('demo') && (
+                <div className="mb-4 px-4 py-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                  <p className="text-sm text-yellow-800 font-medium mb-1">⚠️ Demo Listing</p>
+                  <p className="text-xs text-yellow-700">
+                    This is a demonstration garage. No real mechanic will be dispatched. Use for testing purposes only.
+                  </p>
+                </div>
+              )}
+
               <div className="space-y-3 border-t border-dark-200 pt-4">
                 <div className="flex items-start gap-3">
                   <MapPin className="w-5 h-5 text-dark-500 mt-0.5 flex-shrink-0" />

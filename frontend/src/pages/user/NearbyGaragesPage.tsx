@@ -466,6 +466,11 @@ const NearbyGaragesPage = () => {
                             )}
                           </div>
                           <p className="text-xs text-dark-600 mb-2 line-clamp-1">{garage.address}</p>
+                          {isDev && garage.name.toLowerCase().includes('demo') && (
+                            <div className="mb-2 px-2 py-1 bg-yellow-50 border border-yellow-200 rounded text-[10px] text-yellow-800">
+                              ⚠️ Demo listing - No real mechanic will be dispatched
+                            </div>
+                          )}
                           <div className="flex flex-wrap items-center gap-2 text-xs">
                             <span className="inline-flex items-center gap-1 text-dark-700">
                               <MapPin className="w-3 h-3" />

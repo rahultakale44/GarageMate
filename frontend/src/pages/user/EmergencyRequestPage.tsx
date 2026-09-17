@@ -76,6 +76,18 @@ const EmergencyRequestPage = () => {
   const [images, setImages] = useState<string[]>([]);
   const [addressLookupLoading, setAddressLookupLoading] = useState(false);
   const [addressLookupError, setAddressLookupError] = useState<string | null>(null);
+  
+  // Quick vehicle addition modal
+  const [showQuickVehicleModal, setShowQuickVehicleModal] = useState(false);
+  const [quickVehicleData, setQuickVehicleData] = useState({
+    vehicleType: 'CAR',
+    brand: '',
+    vehicleModel: '',
+    registrationNumber: '',
+    fuelType: 'Petrol',
+    isTemporary: false,
+  });
+  const [savingQuickVehicle, setSavingQuickVehicle] = useState(false);
 
   useEffect(() => {
     const fetchVehicles = async () => {
@@ -189,6 +201,70 @@ const EmergencyRequestPage = () => {
   const clearSelectedGarage = () => {
     setSelectedGarageId('');
     setSelectedGarageName('');
+  };
+  
+  const handleQuickVehicleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    // Validation
+    if (!quickVehicleData.vehicleType) {
+      setErrorMessage('Please select a vehicle type');
+      return;
+    }
+    
+    if (!quickVehicleData.isTemporary) {
+      // For permanent vehicles, require all fields
+      if (!quickVehicleData.brand || !quickVehicleData.vehicleModel || !quickVehicleData.registrationNumber) {
+        setErrorMessage('Please fill all vehicle details or use temporary vehicle option');
+        return;
+      }
+    } else {
+      // For temporary vehicles, only type is required
+      if (!quickVehicleData.vehicleType) {
+        setErrorMessage('Please select a vehicle type');
+        return;
+      }
+    }
+    
+    setSavingQuickVehicle(true);
+    setErrorMessage(null);
+    
+    try {
+      const payload: any = {
+        vehicleType: quickVehicleData.vehicleType,
+        brand: quickVehicleData.brand || 'Temporary',
+        vehicleModel: quickVehicleData.vehicleModel || 'Unknown',
+        registrationNumber: quickVehicleData.registrationNumber || `TEMP-${Date.now()}`,
+        fuelType: quickVehicleData.fuelType,
+        manufacturingYear: new Date().getFullYear(),
+        notes: quickVehicleData.isTemporary ? 'Emergency temporary vehicle' : undefined,
+      };
+      
+      const response = await axiosInstance.post(API_ENDPOINTS.VEHICLES.CREATE, payload);
+      const newVehicle = response.data?.data;
+      
+      // Add to vehicles list and select it
+      setVehicles((prev) => [newVehicle, ...prev]);
+      setSelectedVehicleId(newVehicle._id);
+      
+      // Close modal and reset form
+      setShowQuickVehicleModal(false);
+      setQuickVehicleData({
+        vehicleType: 'CAR',
+        brand: '',
+        vehicleModel: '',
+        registrationNumber: '',
+        fuelType: 'Petrol',
+        isTemporary: false,
+      });
+      
+      setSuccessMessage('Vehicle added successfully!');
+      setTimeout(() => setSuccessMessage(null), 3000);
+    } catch (error: any) {
+      setErrorMessage(error.response?.data?.message || 'Failed to add vehicle');
+    } finally {
+      setSavingQuickVehicle(false);
+    }
   };
 
   const handleSubmit = async (event: React.FormEvent) => {
@@ -310,14 +386,34 @@ const EmergencyRequestPage = () => {
             </div>
 
             <div className="space-y-2">
-              <label className="text-sm font-medium text-dark-700">Select Vehicle</label>
+              <div className="flex items-center justify-between">
+                <label className="text-sm font-medium text-dark-700">Select Vehicle</label>
+                <button
+                  type="button"
+                  onClick={() => setShowQuickVehicleModal(true)}
+                  className="text-xs text-primary-600 hover:text-primary-700 font-medium flex items-center gap-1"
+                >
+                  <Plus className="w-3 h-3" />
+                  Add Vehicle Quickly
+                </button>
+              </div>
               {loadingVehicles ? (
                 <div className="rounded-lg border border-dark-200 bg-dark-50 px-3 py-3 text-sm text-dark-600">
                   Loading vehicles...
                 </div>
               ) : vehicles.length === 0 ? (
-                <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-3 text-sm text-red-700">
-                  No vehicles found. Please add a vehicle first.
+                <div className="space-y-3">
+                  <div className="rounded-lg border border-yellow-200 bg-yellow-50 px-3 py-3 text-sm text-yellow-700">
+                    No vehicles found. Add a vehicle to continue.
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setShowQuickVehicleModal(true)}
+                    className="w-full flex items-center justify-center gap-2 rounded-lg border border-primary-200 bg-primary-50 px-3 py-2 text-sm font-medium text-primary-700 hover:bg-primary-100 transition-colors"
+                  >
+                    <Plus className="w-4 h-4" />
+                    Add Vehicle Now
+                  </button>
                 </div>
               ) : (
                 <select
@@ -483,7 +579,7 @@ const EmergencyRequestPage = () => {
               <h2 className="text-lg font-semibold text-dark-900 mb-4">Booking Summary</h2>
               <div className="space-y-3 text-sm text-dark-600">
                 <div className="flex items-center justify-between">
-                  <span>Booking fee</span>
+                  <span>Demo booking fee</span>
                   <span className="font-semibold text-dark-900">₹{bookingFee}</span>
                 </div>
                 <div className="flex items-center justify-between">
@@ -497,10 +593,13 @@ const EmergencyRequestPage = () => {
                     </p>
                   </div>
                 )}
-                <div className="rounded-lg border border-dark-200 bg-dark-50 px-3 py-3 text-xs text-dark-500">
-                  {selectedGarageName 
-                    ? 'The selected garage will be notified. Mechanic assignment will be confirmed after acceptance.'
-                    : 'Garage and mechanic assignments will be confirmed after the request is submitted.'}
+                <div className="rounded-lg border border-blue-200 bg-blue-50 px-3 py-3 text-xs text-blue-700">
+                  <p className="font-medium mb-1">ℹ️ Demo Mode</p>
+                  <p>
+                    {selectedGarageName 
+                      ? 'Request will be created for demonstration. No actual payment is processed.'
+                      : 'Request will be created for demonstration. Eligible garages will be notified.'}
+                  </p>
                 </div>
               </div>
               <button
@@ -523,6 +622,138 @@ const EmergencyRequestPage = () => {
             </div>
           </div>
         </motion.form>
+        
+        {/* Quick Vehicle Addition Modal */}
+        {showQuickVehicleModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl"
+            >
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-semibold text-dark-900">Add Vehicle Quickly</h3>
+                <button
+                  onClick={() => setShowQuickVehicleModal(false)}
+                  className="rounded-lg p-2 text-dark-600 hover:bg-dark-100"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+              
+              <form onSubmit={handleQuickVehicleSubmit} className="space-y-4">
+                <div className="space-y-2">
+                  <label className="flex items-center gap-2 text-sm">
+                    <input
+                      type="checkbox"
+                      checked={quickVehicleData.isTemporary}
+                      onChange={(e) => setQuickVehicleData(prev => ({ ...prev, isTemporary: e.target.checked }))}
+                      className="rounded"
+                    />
+                    <span className="text-dark-700">This is a temporary/rented vehicle</span>
+                  </label>
+                  {quickVehicleData.isTemporary && (
+                    <p className="text-xs text-dark-500 ml-6">
+                      Only vehicle type is required for temporary vehicles
+                    </p>
+                  )}
+                </div>
+                
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-dark-700">Vehicle Type *</label>
+                  <select
+                    value={quickVehicleData.vehicleType}
+                    onChange={(e) => setQuickVehicleData(prev => ({ ...prev, vehicleType: e.target.value }))}
+                    className="w-full rounded-lg border border-dark-200 bg-white px-3 py-2 text-sm"
+                    required
+                  >
+                    <option value="BIKE">Bike</option>
+                    <option value="SCOOTER">Scooter</option>
+                    <option value="CAR">Car</option>
+                    <option value="SUV">SUV</option>
+                    <option value="VAN">Van</option>
+                    <option value="OTHER">Other</option>
+                  </select>
+                </div>
+                
+                {!quickVehicleData.isTemporary && (
+                  <>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium text-dark-700">Brand *</label>
+                        <input
+                          type="text"
+                          value={quickVehicleData.brand}
+                          onChange={(e) => setQuickVehicleData(prev => ({ ...prev, brand: e.target.value }))}
+                          placeholder="e.g. Maruti"
+                          className="w-full rounded-lg border border-dark-200 bg-white px-3 py-2 text-sm"
+                          required={!quickVehicleData.isTemporary}
+                        />
+                      </div>
+                      
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium text-dark-700">Model *</label>
+                        <input
+                          type="text"
+                          value={quickVehicleData.vehicleModel}
+                          onChange={(e) => setQuickVehicleData(prev => ({ ...prev, vehicleModel: e.target.value }))}
+                          placeholder="e.g. Swift"
+                          className="w-full rounded-lg border border-dark-200 bg-white px-3 py-2 text-sm"
+                          required={!quickVehicleData.isTemporary}
+                        />
+                      </div>
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium text-dark-700">Registration Number *</label>
+                      <input
+                        type="text"
+                        value={quickVehicleData.registrationNumber}
+                        onChange={(e) => setQuickVehicleData(prev => ({ ...prev, registrationNumber: e.target.value.toUpperCase() }))}
+                        placeholder="e.g. MH12AB1234"
+                        className="w-full rounded-lg border border-dark-200 bg-white px-3 py-2 text-sm uppercase"
+                        required={!quickVehicleData.isTemporary}
+                      />
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium text-dark-700">Fuel Type *</label>
+                      <select
+                        value={quickVehicleData.fuelType}
+                        onChange={(e) => setQuickVehicleData(prev => ({ ...prev, fuelType: e.target.value }))}
+                        className="w-full rounded-lg border border-dark-200 bg-white px-3 py-2 text-sm"
+                        required={!quickVehicleData.isTemporary}
+                      >
+                        <option value="Petrol">Petrol</option>
+                        <option value="Diesel">Diesel</option>
+                        <option value="CNG">CNG</option>
+                        <option value="Electric">Electric</option>
+                        <option value="Hybrid">Hybrid</option>
+                      </select>
+                    </div>
+                  </>
+                )}
+                
+                <div className="flex gap-3 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowQuickVehicleModal(false)}
+                    className="flex-1 rounded-lg border border-dark-200 px-4 py-2 text-sm font-medium text-dark-700 hover:bg-dark-50"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={savingQuickVehicle}
+                    className="flex-1 rounded-lg bg-primary-500 px-4 py-2 text-sm font-medium text-white hover:bg-primary-600 disabled:opacity-50"
+                  >
+                    {savingQuickVehicle ? 'Adding...' : 'Add Vehicle'}
+                  </button>
+                </div>
+              </form>
+            </motion.div>
+          </div>
+        )}
       </div>
     </div>
   );
