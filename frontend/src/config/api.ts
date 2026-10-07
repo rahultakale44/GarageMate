@@ -72,6 +72,15 @@ export const API_ENDPOINTS = {
     CANCEL: (id: string) => `/requests/${id}/cancel`,
   },
   
+  // Offers
+  OFFERS: {
+    SUBMIT: (requestId: string) => `/offers/request/${requestId}`,
+    FOR_REQUEST: (requestId: string) => `/offers/request/${requestId}`,
+    ACCEPT: (offerId: string) => `/offers/${offerId}/accept`,
+    WITHDRAW: (offerId: string) => `/offers/${offerId}/withdraw`,
+    MY_OFFERS: '/offers/my-offers',
+  },
+  
   // Quotations
   QUOTATIONS: {
     CREATE: '/quotations',

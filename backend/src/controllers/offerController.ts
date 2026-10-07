@@ -134,7 +134,7 @@ export const acceptOffer = asyncHandler(async (req: AuthRequest, res: Response) 
   const { offerId } = req.params;
 
   // Get offer
-  const offer = await GarageOffer.findById(offerId).populate('garageId');
+  let offer = await GarageOffer.findById(offerId).populate('garageId');
   if (!offer) {
     throw new ApiError(404, 'Offer not found');
   }
@@ -143,25 +143,22 @@ export const acceptOffer = asyncHandler(async (req: AuthRequest, res: Response) 
   await checkAndExpireRequestOffers(offer.requestId.toString());
 
   // Reload offer to get updated status
-  const updatedOffer = await GarageOffer.findById(offerId).populate('garageId');
-  if (!updatedOffer) {
+  offer = await GarageOffer.findById(offerId).populate('garageId');
+  if (!offer) {
     throw new ApiError(404, 'Offer not found');
   }
 
   // Check if offer is still pending
-  if (updatedOffer.status !== OfferStatus.PENDING) {
+  if (offer.status !== OfferStatus.PENDING) {
     throw new ApiError(400, 'This offer is no longer available');
   }
 
   // Check if expired (double check)
-  if (new Date() > updatedOffer.expiresAt) {
-    updatedOffer.status = OfferStatus.EXPIRED;
-    await updatedOffer.save();
+  if (new Date() > offer.expiresAt) {
+    offer.status = OfferStatus.EXPIRED;
+    await offer.save();
     throw new ApiError(400, 'This offer has expired');
   }
-
-  // Use updatedOffer from here
-  const offer = updatedOffer;
 
   // Get request and verify ownership
   const request = await AssistanceRequest.findById(offer.requestId);

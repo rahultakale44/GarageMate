@@ -7,6 +7,7 @@ import { connectDatabase } from './config/database';
 import { initializeFirebase } from './config/firebase';
 import { initializeCloudinary } from './config/cloudinary';
 import { initializeRazorpay } from './config/razorpay';
+import { initializeJWTConfig } from './config/jwt';
 import { initializeSocketIO } from './sockets';
 import { scheduleOfferExpiryJob } from './jobs/offerExpiryJob';
 
@@ -18,6 +19,9 @@ const server = http.createServer(app);
 // Initialize services
 const initializeServices = async () => {
   try {
+    // Validate JWT configuration first (fail fast if misconfigured)
+    initializeJWTConfig();
+    
     await connectDatabase();
     initializeFirebase();
     initializeCloudinary();

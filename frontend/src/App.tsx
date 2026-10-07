@@ -1,8 +1,9 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Suspense, lazy, useEffect, useState } from 'react';
-import { AuthProvider, useAuth } from './context/AuthContext';
+import { AuthProvider } from './context/AuthContext';
 import ProtectedRoute from './components/auth/ProtectedRoute';
+import RedirectHandler from './components/auth/RedirectHandler';
 
 // Loader
 import PageLoader from './components/animation/PageLoader';
@@ -44,7 +45,6 @@ const queryClient = new QueryClient({
 });
 
 function AppRoutes() {
-  const { user, isAuthenticated } = useAuth();
   const [showLoader, setShowLoader] = useState(true);
   const [hasLoadedOnce, setHasLoadedOnce] = useState(false);
 
@@ -64,20 +64,6 @@ function AppRoutes() {
       return () => clearTimeout(timer);
     }
   }, []);
-
-  const getDefaultRoute = () => {
-    if (!isAuthenticated || !user) {
-      return '/';
-    }
-
-    if (user.role === 'ADMIN') {
-      return '/admin/dashboard';
-    }
-    if (user.role === 'GARAGE_OWNER') {
-      return '/garage/dashboard';
-    }
-    return '/user/dashboard';
-  };
 
   return (
     <>
@@ -114,7 +100,7 @@ function AppRoutes() {
               <Route path="/admin/requests" element={<AdminRequestsPage />} />
             </Route>
 
-            <Route path="/redirect" element={<Navigate to={getDefaultRoute()} replace />} />
+            <Route path="/redirect" element={<RedirectHandler />} />
             <Route path="*" element={<div className="min-h-screen flex items-center justify-center p-8 text-center"><div><h1 className="text-3xl font-bold text-dark-900 mb-4">Page Not Found</h1><p className="text-dark-600">The page you are looking for does not exist.</p></div></div>} />
           </Routes>
         </Suspense>
