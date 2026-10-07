@@ -4,6 +4,7 @@ import { motion } from 'framer-motion';
 import { ArrowLeft, CalendarClock, Car, Clock3, MapPin, Trash2, Wrench } from 'lucide-react';
 import axiosInstance from '@/lib/axios';
 import { API_ENDPOINTS } from '@/config/api';
+import OffersDisplay from '@/components/user/OffersDisplay';
 
 interface RequestRecord {
   _id: string;
@@ -29,6 +30,8 @@ const MyRequestsPage = () => {
   const [loadingDetails, setLoadingDetails] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [activeFilter, setActiveFilter] = useState<'ALL' | 'ACTIVE' | 'COMPLETED'>('ACTIVE');
+  const [offers, setOffers] = useState<any[]>([]);
+  const [loadingOffers, setLoadingOffers] = useState(false);
 
   const loadRequests = async () => {
     setLoading(true);
@@ -55,13 +58,49 @@ const MyRequestsPage = () => {
     setLoadingDetails(true);
     try {
       const response = await axiosInstance.get(API_ENDPOINTS.REQUESTS.GET(request._id));
-      setSelectedRequest(response.data?.data || request);
+      const requestData = response.data?.data || request;
+      setSelectedRequest(requestData);
       navigate(`/user/requests/${request._id}`);
+      
+      // Load offers if status is BROADCASTED or OFFERS_RECEIVED
+      if (requestData.status === 'BROADCASTED' || requestData.status === 'OFFERS_RECEIVED') {
+        await loadOffersForRequest(request._id);
+      } else {
+        setOffers([]);
+      }
     } catch {
       setSelectedRequest(request);
       navigate(`/user/requests/${request._id}`);
+      setOffers([]);
     } finally {
       setLoadingDetails(false);
+    }
+  };
+
+  const loadOffersForRequest = async (requestId: string) => {
+    setLoadingOffers(true);
+    try {
+      const response = await axiosInstance.get(API_ENDPOINTS.OFFERS.FOR_REQUEST(requestId));
+      setOffers(response.data?.data || []);
+    } catch (error) {
+      console.error('Failed to load offers:', error);
+      setOffers([]);
+    } finally {
+      setLoadingOffers(false);
+    }
+  };
+
+  const handleOfferAccepted = async () => {
+    // Reload request and offers
+    if (selectedRequest) {
+      try {
+        const response = await axiosInstance.get(API_ENDPOINTS.REQUESTS.GET(selectedRequest._id));
+        setSelectedRequest(response.data?.data || selectedRequest);
+        await loadOffersForRequest(selectedRequest._id);
+        await loadRequests();
+      } catch (error) {
+        setErrorMessage('Failed to refresh request details');
+      }
     }
   };
 
@@ -166,6 +205,25 @@ const MyRequestsPage = () => {
                   <p className="text-sm text-dark-600">Garage: {selectedRequest.garageId?.name || 'Pending'}</p>
                   <p className="text-sm text-dark-600">Mechanic: {selectedRequest.mechanicId?.name || 'Pending'}</p>
                 </div>
+
+                {/* Display Offers Section */}
+                {(selectedRequest.status === 'BROADCASTED' || selectedRequest.status === 'OFFERS_RECEIVED') && (
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-2 text-sm font-semibold text-dark-900">
+                      <Clock3 className="h-4 w-4" />
+                      Available Offers
+                    </div>
+                    {loadingOffers ? (
+                      <div className="p-4 text-center text-sm text-dark-600">Loading offers...</div>
+                    ) : (
+                      <OffersDisplay
+                        requestId={selectedRequest._id}
+                        offers={offers}
+                        onOfferAccepted={handleOfferAccepted}
+                      />
+                    )}
+                  </div>
+                )}
 
                 <div className="space-y-3">
                   <div className="flex items-center gap-2 text-sm font-semibold text-dark-900"><CalendarClock className="h-4 w-4" />Status Timeline</div>

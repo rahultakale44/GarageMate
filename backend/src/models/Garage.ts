@@ -199,4 +199,30 @@ garageSchema.index({ city: 1 });
 garageSchema.index({ isAvailable: 1 });
 garageSchema.index({ rating: -1 });
 
+// Cascade delete related data when garage is deleted
+garageSchema.pre('deleteOne', { document: true, query: false }, async function (next) {
+  try {
+    const garageId = this._id;
+    
+    // Delete related mechanics
+    await mongoose.model('Mechanic').deleteMany({ garageId });
+    
+    // Delete related offers
+    await mongoose.model('GarageOffer').deleteMany({ garageId });
+    
+    // Delete related reviews
+    await mongoose.model('Review').deleteMany({ garageId });
+    
+    // Nullify garageId in requests (preserve request history)
+    await mongoose.model('AssistanceRequest').updateMany(
+      { garageId },
+      { $unset: { garageId: 1 } }
+    );
+    
+    next();
+  } catch (error) {
+    next(error as Error);
+  }
+});
+
 export const Garage = mongoose.model<IGarageDocument>('Garage', garageSchema);

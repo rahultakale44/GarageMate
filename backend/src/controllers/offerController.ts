@@ -6,6 +6,7 @@ import { Garage } from '../models/Garage';
 import { ApiError } from '../utils/ApiError';
 import { asyncHandler } from '../utils/asyncHandler';
 import { createNotification } from '../services/notificationService';
+import { checkAndExpireRequestOffers } from '../utils/offerExpiry';
 import { z } from 'zod';
 
 // Validation schemas
@@ -114,6 +115,9 @@ export const getOffersForRequest = asyncHandler(async (req: AuthRequest, res: Re
     throw new ApiError(403, 'Access denied');
   }
 
+  // Check and expire old offers before returning
+  await checkAndExpireRequestOffers(requestId);
+
   // Get all offers for this request
   const offers = await GarageOffer.find({ requestId })
     .populate('garageId', 'name phone address rating reviewCount visitingCharge location services')
@@ -135,17 +139,29 @@ export const acceptOffer = asyncHandler(async (req: AuthRequest, res: Response) 
     throw new ApiError(404, 'Offer not found');
   }
 
+  // Check and expire old offers for this request first
+  await checkAndExpireRequestOffers(offer.requestId.toString());
+
+  // Reload offer to get updated status
+  const updatedOffer = await GarageOffer.findById(offerId).populate('garageId');
+  if (!updatedOffer) {
+    throw new ApiError(404, 'Offer not found');
+  }
+
   // Check if offer is still pending
-  if (offer.status !== OfferStatus.PENDING) {
+  if (updatedOffer.status !== OfferStatus.PENDING) {
     throw new ApiError(400, 'This offer is no longer available');
   }
 
-  // Check if expired
-  if (new Date() > offer.expiresAt) {
-    offer.status = OfferStatus.EXPIRED;
-    await offer.save();
+  // Check if expired (double check)
+  if (new Date() > updatedOffer.expiresAt) {
+    updatedOffer.status = OfferStatus.EXPIRED;
+    await updatedOffer.save();
     throw new ApiError(400, 'This offer has expired');
   }
+
+  // Use updatedOffer from here
+  const offer = updatedOffer;
 
   // Get request and verify ownership
   const request = await AssistanceRequest.findById(offer.requestId);

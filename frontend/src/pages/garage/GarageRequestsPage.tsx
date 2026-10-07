@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, Car, Clock3, MapPin, UserCheck } from 'lucide-react';
+import { ArrowLeft, Car, Clock3, MapPin, UserCheck, Send } from 'lucide-react';
 import axiosInstance from '@/lib/axios';
 import { API_ENDPOINTS } from '@/config/api';
+import SubmitOfferModal from '@/components/garage/SubmitOfferModal';
 
 interface RequestRecord {
   _id: string;
@@ -37,6 +38,8 @@ const GarageRequestsPage = () => {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [selectedMechanicId, setSelectedMechanicId] = useState('');
+  const [showOfferModal, setShowOfferModal] = useState(false);
+  const [myOffers, setMyOffers] = useState<Record<string, any>>({});
 
   const loadRequests = async () => {
     setLoading(true);
@@ -67,10 +70,45 @@ const GarageRequestsPage = () => {
     }
   };
 
+  const loadMyOffers = async () => {
+    try {
+      const response = await axiosInstance.get(API_ENDPOINTS.OFFERS.MY_OFFERS);
+      const offers = response.data?.data || [];
+      // Create a map of requestId -> offer
+      const offerMap: Record<string, any> = {};
+      offers.forEach((offer: any) => {
+        if (offer.requestId && typeof offer.requestId === 'object' && offer.requestId._id) {
+          offerMap[offer.requestId._id] = offer;
+        } else if (typeof offer.requestId === 'string') {
+          offerMap[offer.requestId] = offer;
+        }
+      });
+      setMyOffers(offerMap);
+    } catch (error) {
+      console.error('Failed to load offers:', error);
+    }
+  };
+
   useEffect(() => {
     void loadRequests();
     void loadMechanics();
+    void loadMyOffers();
   }, [id]);
+
+  const handleOfferSuccess = async () => {
+    setSuccessMessage('Offer submitted successfully');
+    await loadRequests();
+    await loadMyOffers();
+    if (selectedRequest) {
+      // Reload the selected request details
+      try {
+        const response = await axiosInstance.get(API_ENDPOINTS.REQUESTS.GET(selectedRequest._id));
+        setSelectedRequest(response.data?.data || selectedRequest);
+      } catch {
+        // Silently fail
+      }
+    }
+  };
 
   const openRequest = async (request: RequestRecord) => {
     setLoadingDetails(true);
@@ -173,7 +211,14 @@ const GarageRequestsPage = () => {
                     <p className="text-sm font-semibold text-dark-900">{request.issueCategory.replace(/_/g, ' ')}</p>
                     <p className="mt-1 text-sm text-dark-600">{request.issueDescription}</p>
                   </div>
-                  <span className="rounded-full bg-primary-50 px-3 py-1 text-xs font-medium text-primary-600">{request.status}</span>
+                  <div className="flex flex-col gap-1.5 items-end">
+                    <span className="rounded-full bg-primary-50 px-3 py-1 text-xs font-medium text-primary-600">{request.status}</span>
+                    {myOffers[request._id] && (
+                      <span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-medium text-blue-600">
+                        {myOffers[request._id].status === 'PENDING' ? '✓ Offer Sent' : myOffers[request._id].status === 'ACCEPTED' ? '✓ Accepted' : '✗ ' + myOffers[request._id].status}
+                      </span>
+                    )}
+                  </div>
                 </div>
                 <div className="mt-4 flex flex-wrap gap-4 text-sm text-dark-500">
                   <span className="flex items-center gap-1"><Car className="h-4 w-4" />{request.userId?.name || 'Customer'}</span>
@@ -210,6 +255,38 @@ const GarageRequestsPage = () => {
                   <div className="flex items-center gap-2 font-semibold text-dark-900"><MapPin className="h-4 w-4" />Location</div>
                   <p>{selectedRequest.address}</p>
                 </div>
+
+                {/* Show offer status if exists */}
+                {myOffers[selectedRequest._id] && (
+                  <div className="rounded-xl bg-blue-50 border border-blue-200 p-4">
+                    <p className="text-sm font-semibold text-blue-900 mb-2">Your Offer</p>
+                    <div className="space-y-1 text-sm text-blue-700">
+                      <div className="flex justify-between">
+                        <span>ETA:</span>
+                        <span className="font-medium">{myOffers[selectedRequest._id].estimatedArrivalMinutes} min</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>Visit Fee:</span>
+                        <span className="font-medium">₹{myOffers[selectedRequest._id].visitFee}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>Status:</span>
+                        <span className="font-semibold">{myOffers[selectedRequest._id].status}</span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Submit offer button for BROADCASTED/OFFERS_RECEIVED requests */}
+                {(selectedRequest.status === 'BROADCASTED' || selectedRequest.status === 'OFFERS_RECEIVED') && !myOffers[selectedRequest._id] && (
+                  <button
+                    onClick={() => setShowOfferModal(true)}
+                    className="w-full flex items-center justify-center gap-2 rounded-lg bg-primary-500 px-3 py-2 text-sm font-medium text-white hover:bg-primary-600 transition-colors"
+                  >
+                    <Send className="h-4 w-4" />
+                    Submit Your Offer
+                  </button>
+                )}
 
                 {selectedRequest.status === 'SEARCHING_GARAGE' || selectedRequest.status === 'REQUEST_SENT' ? (
                   <div className="flex gap-2">
@@ -251,6 +328,19 @@ const GarageRequestsPage = () => {
           </div>
         </div>
       </div>
+
+      {/* Offer Submission Modal */}
+      {showOfferModal && selectedRequest && (
+        <SubmitOfferModal
+          requestId={selectedRequest._id}
+          requestDetails={{
+            issueCategory: selectedRequest.issueCategory,
+            address: selectedRequest.address,
+          }}
+          onClose={() => setShowOfferModal(false)}
+          onSuccess={handleOfferSuccess}
+        />
+      )}
     </div>
   );
 };

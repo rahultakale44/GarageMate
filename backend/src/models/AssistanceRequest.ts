@@ -126,6 +126,31 @@ assistanceRequestSchema.index({ status: 1 });
 assistanceRequestSchema.index({ location: '2dsphere' });
 assistanceRequestSchema.index({ createdAt: -1 });
 
+// Cascade delete related data when request is deleted
+assistanceRequestSchema.pre('deleteOne', { document: true, query: false }, async function (next) {
+  try {
+    const requestId = this._id;
+    
+    // Delete related offers
+    await mongoose.model('GarageOffer').deleteMany({ requestId });
+    
+    // Delete related quotations
+    await mongoose.model('Quotation').deleteMany({ requestId });
+    
+    // Delete related payments
+    await mongoose.model('Payment').deleteMany({ requestId });
+    
+    // Delete related notifications
+    await mongoose.model('Notification').deleteMany({ 
+      redirectUrl: { $regex: requestId.toString() } 
+    });
+    
+    next();
+  } catch (error) {
+    next(error as Error);
+  }
+});
+
 export const AssistanceRequest = mongoose.model<IAssistanceRequestDocument>(
   'AssistanceRequest',
   assistanceRequestSchema

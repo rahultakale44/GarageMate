@@ -8,6 +8,7 @@ import { initializeFirebase } from './config/firebase';
 import { initializeCloudinary } from './config/cloudinary';
 import { initializeRazorpay } from './config/razorpay';
 import { initializeSocketIO } from './sockets';
+import { scheduleOfferExpiryJob } from './jobs/offerExpiryJob';
 
 const PORT = process.env.PORT || 5000;
 
@@ -22,6 +23,9 @@ const initializeServices = async () => {
     initializeCloudinary();
     initializeRazorpay();
     initializeSocketIO(server);
+    
+    // Schedule background jobs
+    scheduleOfferExpiryJob();
 
     server.listen(PORT, () => {
       console.log(`\n🚀 GarageMate Backend Server`);
