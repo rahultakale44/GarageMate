@@ -29,7 +29,7 @@ interface OffersDisplayProps {
   onOfferAccepted: () => void;
 }
 
-const OffersDisplay = ({ requestId, offers, onOfferAccepted }: OffersDisplayProps) => {
+const OffersDisplay = ({ offers, onOfferAccepted }: OffersDisplayProps) => {
   const [accepting, setAccepting] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 

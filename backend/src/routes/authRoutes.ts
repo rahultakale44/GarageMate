@@ -11,7 +11,7 @@ import {
   getMe,
 } from '../controllers/authController';
 import { authenticate } from '../middlewares/auth';
-import { authLimiter } from '../middlewares/rateLimiter';
+import { authLimiter, refreshLimiter, forgotPasswordLimiter } from '../middlewares/rateLimiter';
 
 const router = Router();
 
@@ -19,9 +19,9 @@ router.post('/user/register', authLimiter, registerUser);
 router.post('/garage/register', authLimiter, registerGarageOwner);
 router.post('/login', authLimiter, login);
 router.post('/google', authLimiter, googleAuth);
-router.post('/refresh', refresh);
+router.post('/refresh', refreshLimiter, refresh);
 router.post('/logout', logout);
-router.post('/forgot-password', authLimiter, forgotPassword);
+router.post('/forgot-password', forgotPasswordLimiter, forgotPassword);
 router.post('/reset-password', authLimiter, resetPassword);
 router.get('/me', authenticate, getMe);
 

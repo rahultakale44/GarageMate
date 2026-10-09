@@ -95,6 +95,31 @@ const AdminLogin = () => {
 
             {error && <p className="text-sm text-red-600">{error}</p>}
 
+            {/* Demo Credentials */}
+            <div className="bg-amber-900/20 border border-amber-700/30 rounded-lg p-4">
+              <div className="flex items-start gap-3">
+                <div className="flex-shrink-0 mt-0.5">
+                  <svg className="w-5 h-5 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                </div>
+                <div className="flex-1">
+                  <p className="text-sm font-semibold text-amber-300 mb-2">Demo Account Available</p>
+                  <div className="space-y-1 text-sm text-amber-200">
+                    <p><span className="font-medium">Email:</span> demo.admin@garagemate.com</p>
+                    <p><span className="font-medium">Password:</span> Demo@12345</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setFormData({ email: 'demo.admin@garagemate.com', password: 'Demo@12345' })}
+                    className="mt-2 text-xs font-medium text-amber-300 hover:text-amber-100 underline"
+                  >
+                    Use Demo Credentials
+                  </button>
+                </div>
+              </div>
+            </div>
+
             <button
               type="submit"
               disabled={loading}

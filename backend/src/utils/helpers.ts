@@ -6,7 +6,13 @@ export const generateOTP = (): string => {
 };
 
 export const generateResetToken = (): string => {
-  return crypto.randomBytes(32).toString('hex');
+  // Generate 64 random bytes (increased entropy from 32)
+  return crypto.randomBytes(64).toString('hex');
+};
+
+export const hashResetToken = (token: string): string => {
+  // Hash token with SHA-256 before storing in database
+  return crypto.createHash('sha256').update(token).digest('hex');
 };
 
 export const calculateDistance = (

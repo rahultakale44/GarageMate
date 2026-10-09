@@ -56,6 +56,7 @@ export const expireOldOffers = async (): Promise<{ expiredCount: number }> => {
           request.statusHistory.push({
             status: RequestStatus.EXPIRED,
             updatedAt: new Date(),
+            updatedBy: 'system',
             notes: 'All offers expired without acceptance',
           });
           await request.save();

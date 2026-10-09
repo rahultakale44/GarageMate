@@ -8,7 +8,7 @@ import { asyncHandler } from '../utils/asyncHandler';
 import { generateAccessToken, generateRefreshToken, verifyRefreshToken } from '../utils/jwt';
 import { verifyFirebaseToken } from '../config/firebase';
 import { sendPasswordResetEmail, sendWelcomeEmail } from '../utils/email';
-import { generateResetToken, sanitizeUser } from '../utils/helpers';
+import { generateResetToken, sanitizeUser, hashResetToken } from '../utils/helpers';
 import {
   registerUserSchema,
   loginSchema,
@@ -132,6 +132,13 @@ export const login = asyncHandler(async (req: AuthRequest, res: Response) => {
     throw new ApiError(401, 'Invalid credentials');
   }
 
+  // SECURITY: Clear any pending password reset tokens on successful login
+  if (user.resetPasswordToken) {
+    user.resetPasswordToken = undefined;
+    user.resetPasswordExpires = undefined;
+    await user.save();
+  }
+
   const accessToken = generateAccessToken(user._id.toString(), user.role, user.email);
   const refreshToken = generateRefreshToken(user._id.toString(), user.role, user.email);
 
@@ -198,6 +205,13 @@ export const googleAuth = asyncHandler(async (req: AuthRequest, res: Response) =
     throw new ApiError(400, `This account is registered as ${user.role}`);
   }
 
+  // SECURITY: Clear any pending password reset tokens on successful login
+  if (user.resetPasswordToken) {
+    user.resetPasswordToken = undefined;
+    user.resetPasswordExpires = undefined;
+    await user.save();
+  }
+
   const accessToken = generateAccessToken(user._id.toString(), user.role, user.email);
   const refreshToken = generateRefreshToken(user._id.toString(), user.role, user.email);
 
@@ -231,29 +245,74 @@ export const refresh = asyncHandler(async (req: AuthRequest, res: Response) => {
   const validatedData = refreshTokenSchema.parse(req.body);
 
   const storedToken = await RefreshToken.findOne({ token: validatedData.refreshToken });
+  
+  // SECURITY: Detect stolen token reuse
   if (!storedToken) {
-    throw new ApiError(401, 'Invalid refresh token');
+    // Token was deleted or never existed
+    // Try to decode to see if it was a valid token that was already used
+    try {
+      const decoded = verifyRefreshToken(validatedData.refreshToken);
+      
+      // Token is valid JWT but not in database = already used/rotated
+      // This indicates potential token theft - revoke ALL tokens for this user
+      console.warn(`🚨 SECURITY ALERT: Refresh token reuse detected for user ${decoded.userId}`);
+      console.warn(`   IP: ${req.ip}, User-Agent: ${req.get('user-agent')}`);
+      console.warn(`   Action: Revoking all refresh tokens for user security`);
+      
+      await RefreshToken.deleteMany({ userId: decoded.userId });
+      
+      throw new ApiError(
+        401,
+        'Invalid refresh token. All sessions have been terminated for security. Please login again.'
+      );
+    } catch (error) {
+      // Token is invalid or expired JWT
+      if (error instanceof ApiError) {
+        throw error;
+      }
+      throw new ApiError(401, 'Invalid refresh token');
+    }
   }
 
+  // Check if token is expired
   if (storedToken.expiresAt < new Date()) {
     await RefreshToken.deleteOne({ _id: storedToken._id });
     throw new ApiError(401, 'Refresh token expired');
   }
 
+  // Verify JWT signature and decode
   const decoded = verifyRefreshToken(validatedData.refreshToken);
 
+  // Get user and verify status
   const user = await User.findById(decoded.userId);
   if (!user || user.isBlocked) {
+    await RefreshToken.deleteOne({ _id: storedToken._id });
     throw new ApiError(401, 'User not found or blocked');
   }
 
-  const accessToken = generateAccessToken(user._id.toString(), user.role, user.email);
+  // SECURITY: Token rotation - delete old token immediately
+  await RefreshToken.deleteOne({ _id: storedToken._id });
+
+  // Generate NEW access token and NEW refresh token
+  const newAccessToken = generateAccessToken(user._id.toString(), user.role, user.email);
+  const newRefreshToken = generateRefreshToken(user._id.toString(), user.role, user.email);
+
+  // Store new refresh token
+  await RefreshToken.create({
+    token: newRefreshToken,
+    userId: user._id,
+    expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+  });
+
+  // Log successful token refresh
+  console.log(`✅ Token refreshed for user ${user._id} (${user.email})`);
 
   res.json({
     success: true,
     message: 'Token refreshed successfully',
     data: {
-      accessToken,
+      accessToken: newAccessToken,
+      refreshToken: newRefreshToken,
     },
   });
 });
@@ -278,7 +337,7 @@ export const forgotPassword = asyncHandler(async (req: AuthRequest, res: Respons
 
   const user = await User.findOne({ email: validatedData.email });
   if (!user) {
-    // Don't reveal if email exists
+    // Don't reveal if email exists (timing-safe response)
     res.json({
       success: true,
       message: 'If an account exists, a password reset email has been sent',
@@ -286,12 +345,22 @@ export const forgotPassword = asyncHandler(async (req: AuthRequest, res: Respons
     return;
   }
 
-  const resetToken = generateResetToken();
-  user.resetPasswordToken = resetToken;
+  // Generate plain text token to send via email
+  const plainTextToken = generateResetToken();
+  
+  // Hash token before storing in database (security: prevent DB dump attacks)
+  const hashedToken = hashResetToken(plainTextToken);
+  
+  user.resetPasswordToken = hashedToken;
   user.resetPasswordExpires = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
   await user.save();
 
-  await sendPasswordResetEmail(user.email, resetToken);
+  // Send plain text token to user's email
+  await sendPasswordResetEmail(user.email, plainTextToken);
+
+  // Log password reset request for security monitoring
+  console.log(`🔐 Password reset requested for user ${user._id} (${user.email})`);
+  console.log(`   IP: ${req.ip}, User-Agent: ${req.get('user-agent')}`);
 
   res.json({
     success: true,
@@ -303,8 +372,12 @@ export const forgotPassword = asyncHandler(async (req: AuthRequest, res: Respons
 export const resetPassword = asyncHandler(async (req: AuthRequest, res: Response) => {
   const validatedData = resetPasswordSchema.parse(req.body);
 
+  // Hash the provided token to compare with database
+  const hashedToken = hashResetToken(validatedData.token);
+
+  // Find user with hashed token and valid expiry
   const user = await User.findOne({
-    resetPasswordToken: validatedData.token,
+    resetPasswordToken: hashedToken,
     resetPasswordExpires: { $gt: new Date() },
   });
 
@@ -312,14 +385,25 @@ export const resetPassword = asyncHandler(async (req: AuthRequest, res: Response
     throw new ApiError(400, 'Invalid or expired reset token');
   }
 
+  // Update password (will be hashed by pre-save hook)
   user.password = validatedData.password;
+  
+  // SECURITY: Invalidate reset token immediately after use (prevent reuse)
   user.resetPasswordToken = undefined;
   user.resetPasswordExpires = undefined;
   await user.save();
 
+  // SECURITY: Revoke all refresh tokens to force re-login on all devices
+  await RefreshToken.deleteMany({ userId: user._id });
+
+  // Log successful password reset for security monitoring
+  console.log(`✅ Password reset successful for user ${user._id} (${user.email})`);
+  console.log(`   IP: ${req.ip}, User-Agent: ${req.get('user-agent')}`);
+  console.log(`   Action: All refresh tokens revoked, user must re-login`);
+
   res.json({
     success: true,
-    message: 'Password reset successful',
+    message: 'Password reset successful. Please login with your new password.',
   });
 });
 
