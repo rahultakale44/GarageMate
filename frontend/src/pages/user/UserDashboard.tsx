@@ -122,8 +122,8 @@ const UserDashboard = () => {
     { icon: MapPin, label: 'Find Garages', path: '/user/nearby-garages' },
     { icon: AlertCircle, label: 'Emergency Help', path: '/user/emergency' },
     { icon: Clock, label: 'My Requests', path: '/user/requests' },
-    { icon: Car, label: 'My Vehicles', path: '/user/dashboard' },
-    { icon: Star, label: 'Reviews', path: '/user/dashboard' },
+    { icon: Car, label: 'My Vehicles', path: '/user/vehicles' },
+    { icon: Star, label: 'Reviews', path: '/user/reviews' },
   ];
 
   const [requests, setRequests] = useState<RequestRecord[]>([]);
