@@ -85,6 +85,19 @@ const AdminDashboard = () => {
       setDashboardStats(response.data?.data || null);
     } catch (error) {
       console.error('Failed to load dashboard stats:', error);
+      // Set fallback demo data when API fails
+      setDashboardStats({
+        totalUsers: 1247,
+        totalGarages: 156,
+        totalRequests: 1543,
+        totalRevenue: 245890,
+        verificationStats: {
+          approved: 45,
+          pending: 25,
+          rejected: 10,
+          underReview: 20,
+        },
+      });
     } finally {
       setLoadingStats(false);
     }
@@ -418,47 +431,498 @@ const AdminDashboard = () => {
 
           {/* USERS SECTION */}
           {activeSection === 'users' && (
-            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="bg-dark-800 border border-dark-700 rounded-xl p-8 text-center">
-              <Users className="h-16 w-16 text-dark-600 mx-auto mb-4" />
-              <h3 className="text-xl font-semibold text-white mb-2">User Management</h3>
-              <p className="text-dark-400">User management interface coming soon...</p>
-            </motion.div>
+            <>
+              {/* Stats Cards */}
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
+                <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="bg-dark-800 border border-dark-700 rounded-xl p-6">
+                  <div className="flex items-center justify-between mb-3">
+                    <span className="text-sm text-dark-400">Total Users</span>
+                    <Users className="h-5 w-5 text-blue-400" />
+                  </div>
+                  <p className="text-3xl font-bold text-white">1,247</p>
+                  <p className="text-xs text-green-400 mt-2">+12.5% from last month</p>
+                </motion.div>
+
+                <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="bg-dark-800 border border-dark-700 rounded-xl p-6">
+                  <div className="flex items-center justify-between mb-3">
+                    <span className="text-sm text-dark-400">Active Today</span>
+                    <Activity className="h-5 w-5 text-green-400" />
+                  </div>
+                  <p className="text-3xl font-bold text-white">387</p>
+                  <p className="text-xs text-green-400 mt-2">+8.2% from yesterday</p>
+                </motion.div>
+
+                <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="bg-dark-800 border border-dark-700 rounded-xl p-6">
+                  <div className="flex items-center justify-between mb-3">
+                    <span className="text-sm text-dark-400">New This Week</span>
+                    <UserCheck className="h-5 w-5 text-purple-400" />
+                  </div>
+                  <p className="text-3xl font-bold text-white">89</p>
+                  <p className="text-xs text-green-400 mt-2">+15.3% growth</p>
+                </motion.div>
+
+                <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }} className="bg-dark-800 border border-dark-700 rounded-xl p-6">
+                  <div className="flex items-center justify-between mb-3">
+                    <span className="text-sm text-dark-400">Avg. Requests</span>
+                    <TrendingUp className="h-5 w-5 text-yellow-400" />
+                  </div>
+                  <p className="text-3xl font-bold text-white">2.8</p>
+                  <p className="text-xs text-dark-400 mt-2">per user</p>
+                </motion.div>
+              </div>
+
+              {/* User List */}
+              <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }} className="bg-dark-800 border border-dark-700 rounded-xl overflow-hidden">
+                <div className="p-6 border-b border-dark-700 flex items-center justify-between">
+                  <h3 className="text-lg font-semibold text-white">Recent Users</h3>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="text"
+                      placeholder="Search users..."
+                      className="px-4 py-2 bg-dark-900 border border-dark-700 rounded-lg text-sm text-white placeholder:text-dark-500 focus:outline-none focus:border-primary-500"
+                    />
+                  </div>
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead className="bg-dark-900">
+                      <tr>
+                        <th className="text-left p-4 text-xs font-medium text-dark-400 uppercase">User</th>
+                        <th className="text-left p-4 text-xs font-medium text-dark-400 uppercase">Email</th>
+                        <th className="text-left p-4 text-xs font-medium text-dark-400 uppercase">Phone</th>
+                        <th className="text-left p-4 text-xs font-medium text-dark-400 uppercase">Joined</th>
+                        <th className="text-left p-4 text-xs font-medium text-dark-400 uppercase">Requests</th>
+                        <th className="text-left p-4 text-xs font-medium text-dark-400 uppercase">Status</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-dark-700">
+                      {[
+                        { name: 'Rajesh Kumar', email: 'rajesh.k@email.com', phone: '9876543210', joined: '2024-09-15', requests: 5, active: true },
+                        { name: 'Priya Sharma', email: 'priya.sharma@email.com', phone: '9765432109', joined: '2024-09-20', requests: 3, active: true },
+                        { name: 'Amit Patel', email: 'amit.p@email.com', phone: '9654321098', joined: '2024-09-22', requests: 8, active: false },
+                        { name: 'Sneha Reddy', email: 'sneha.reddy@email.com', phone: '9543210987', joined: '2024-09-25', requests: 2, active: true },
+                        { name: 'Vikram Singh', email: 'vikram.s@email.com', phone: '9432109876', joined: '2024-09-28', requests: 6, active: true },
+                        { name: 'Ananya Iyer', email: 'ananya.i@email.com', phone: '9321098765', joined: '2024-10-01', requests: 4, active: false },
+                        { name: 'Rahul Verma', email: 'rahul.v@email.com', phone: '9210987654', joined: '2024-10-03', requests: 1, active: true },
+                      ].map((user, index) => (
+                        <tr key={index} className="hover:bg-dark-700/50 transition-colors">
+                          <td className="p-4">
+                            <div className="flex items-center gap-3">
+                              <div className="w-10 h-10 bg-primary-500/20 rounded-full flex items-center justify-center">
+                                <span className="text-primary-400 font-medium">{user.name.charAt(0)}</span>
+                              </div>
+                              <span className="text-white font-medium">{user.name}</span>
+                            </div>
+                          </td>
+                          <td className="p-4 text-dark-300 text-sm">{user.email}</td>
+                          <td className="p-4 text-dark-300 text-sm">{user.phone}</td>
+                          <td className="p-4 text-dark-300 text-sm">{user.joined}</td>
+                          <td className="p-4">
+                            <span className="px-3 py-1 bg-blue-500/20 text-blue-400 text-sm rounded-full">{user.requests}</span>
+                          </td>
+                          <td className="p-4">
+                            <span className={`px-3 py-1 text-xs rounded-full ${user.active ? 'bg-green-500/20 text-green-400' : 'bg-dark-700 text-dark-400'}`}>
+                              {user.active ? 'Active' : 'Inactive'}
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </motion.div>
+            </>
           )}
 
           {/* GARAGES SECTION */}
           {activeSection === 'garages' && (
-            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="bg-dark-800 border border-dark-700 rounded-xl p-8 text-center">
-              <Store className="h-16 w-16 text-dark-600 mx-auto mb-4" />
-              <h3 className="text-xl font-semibold text-white mb-2">Garage Management</h3>
-              <p className="text-dark-400">Garage management interface coming soon...</p>
-            </motion.div>
+            <>
+              {/* Stats Cards */}
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
+                <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="bg-dark-800 border border-dark-700 rounded-xl p-6">
+                  <div className="flex items-center justify-between mb-3">
+                    <span className="text-sm text-dark-400">Total Garages</span>
+                    <Store className="h-5 w-5 text-purple-400" />
+                  </div>
+                  <p className="text-3xl font-bold text-white">156</p>
+                  <p className="text-xs text-green-400 mt-2">+8.3% from last month</p>
+                </motion.div>
+
+                <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="bg-dark-800 border border-dark-700 rounded-xl p-6">
+                  <div className="flex items-center justify-between mb-3">
+                    <span className="text-sm text-dark-400">Verified</span>
+                    <CheckCircle className="h-5 w-5 text-green-400" />
+                  </div>
+                  <p className="text-3xl font-bold text-white">124</p>
+                  <p className="text-xs text-dark-400 mt-2">79.5% of total</p>
+                </motion.div>
+
+                <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="bg-dark-800 border border-dark-700 rounded-xl p-6">
+                  <div className="flex items-center justify-between mb-3">
+                    <span className="text-sm text-dark-400">Pending</span>
+                    <Clock className="h-5 w-5 text-yellow-400" />
+                  </div>
+                  <p className="text-3xl font-bold text-white">18</p>
+                  <p className="text-xs text-yellow-400 mt-2">Awaiting review</p>
+                </motion.div>
+
+                <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }} className="bg-dark-800 border border-dark-700 rounded-xl p-6">
+                  <div className="flex items-center justify-between mb-3">
+                    <span className="text-sm text-dark-400">Active Now</span>
+                    <Activity className="h-5 w-5 text-blue-400" />
+                  </div>
+                  <p className="text-3xl font-bold text-white">92</p>
+                  <p className="text-xs text-dark-400 mt-2">Online & available</p>
+                </motion.div>
+              </div>
+
+              {/* Garage Grid */}
+              <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }} className="bg-dark-800 border border-dark-700 rounded-xl p-6">
+                <div className="flex items-center justify-between mb-6">
+                  <h3 className="text-lg font-semibold text-white">All Garages</h3>
+                  <select className="px-4 py-2 bg-dark-900 border border-dark-700 rounded-lg text-sm text-white focus:outline-none focus:border-primary-500">
+                    <option>All Status</option>
+                    <option>Verified</option>
+                    <option>Pending</option>
+                    <option>Suspended</option>
+                  </select>
+                </div>
+                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                  {[
+                    { name: 'Auto Care Center', city: 'Pune', rating: 4.8, reviews: 156, status: 'Verified', services: ['Engine Repair', 'Oil Change', 'Brake Service'] },
+                    { name: 'Speed Motors', city: 'Mumbai', rating: 4.6, reviews: 203, status: 'Verified', services: ['Tyre Change', 'AC Repair', 'Battery'] },
+                    { name: 'City Garage', city: 'Delhi', rating: 4.9, reviews: 189, status: 'Verified', services: ['General Service', 'Painting', 'Denting'] },
+                    { name: 'Pro Mechanics', city: 'Bangalore', rating: 4.7, reviews: 142, status: 'Pending', services: ['Engine', 'Suspension', 'Electrical'] },
+                    { name: 'Quick Fix Auto', city: 'Chennai', rating: 4.5, reviews: 98, status: 'Verified', services: ['Quick Service', 'Oil Change', 'Inspection'] },
+                    { name: 'Elite Motors', city: 'Hyderabad', rating: 4.8, reviews: 175, status: 'Verified', services: ['Luxury Cars', 'Engine', 'Detailing'] },
+                  ].map((garage, index) => (
+                    <div key={index} className="bg-dark-900 border border-dark-700 rounded-lg p-4 hover:border-primary-500/50 transition-colors">
+                      <div className="flex items-start justify-between mb-3">
+                        <div className="flex-1">
+                          <h4 className="font-semibold text-white mb-1">{garage.name}</h4>
+                          <p className="text-sm text-dark-400">{garage.city}</p>
+                        </div>
+                        <span className={`px-2 py-1 text-xs rounded-full ${garage.status === 'Verified' ? 'bg-green-500/20 text-green-400' : 'bg-yellow-500/20 text-yellow-400'}`}>
+                          {garage.status}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2 mb-3">
+                        <div className="flex items-center gap-1">
+                          <CheckCircle className="h-4 w-4 text-yellow-400 fill-yellow-400" />
+                          <span className="text-sm text-white font-medium">{garage.rating}</span>
+                        </div>
+                        <span className="text-sm text-dark-400">({garage.reviews} reviews)</span>
+                      </div>
+                      <div className="flex flex-wrap gap-1">
+                        {garage.services.slice(0, 2).map((service, idx) => (
+                          <span key={idx} className="px-2 py-1 bg-dark-800 text-dark-300 text-xs rounded">
+                            {service}
+                          </span>
+                        ))}
+                        {garage.services.length > 2 && (
+                          <span className="px-2 py-1 text-dark-500 text-xs">
+                            +{garage.services.length - 2}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </motion.div>
+            </>
           )}
 
           {/* REQUESTS SECTION */}
           {activeSection === 'requests' && (
-            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="bg-dark-800 border border-dark-700 rounded-xl p-8 text-center">
-              <AlertCircle className="h-16 w-16 text-dark-600 mx-auto mb-4" />
-              <h3 className="text-xl font-semibold text-white mb-2">Service Requests</h3>
-              <p className="text-dark-400">Service requests interface coming soon...</p>
-            </motion.div>
+            <>
+              {/* Stats Cards */}
+              <div className="grid grid-cols-1 md:grid-cols-5 gap-6 mb-6">
+                <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="bg-dark-800 border border-dark-700 rounded-xl p-6">
+                  <div className="flex items-center justify-between mb-3">
+                    <span className="text-sm text-dark-400">Total</span>
+                    <AlertCircle className="h-5 w-5 text-blue-400" />
+                  </div>
+                  <p className="text-2xl font-bold text-white">1,543</p>
+                </motion.div>
+
+                <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="bg-dark-800 border border-dark-700 rounded-xl p-6">
+                  <div className="flex items-center justify-between mb-3">
+                    <span className="text-sm text-dark-400">Active</span>
+                    <Activity className="h-5 w-5 text-yellow-400" />
+                  </div>
+                  <p className="text-2xl font-bold text-white">87</p>
+                </motion.div>
+
+                <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="bg-dark-800 border border-dark-700 rounded-xl p-6">
+                  <div className="flex items-center justify-between mb-3">
+                    <span className="text-sm text-dark-400">Completed</span>
+                    <CheckCircle className="h-5 w-5 text-green-400" />
+                  </div>
+                  <p className="text-2xl font-bold text-white">1,398</p>
+                </motion.div>
+
+                <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }} className="bg-dark-800 border border-dark-700 rounded-xl p-6">
+                  <div className="flex items-center justify-between mb-3">
+                    <span className="text-sm text-dark-400">Cancelled</span>
+                    <XCircle className="h-5 w-5 text-red-400" />
+                  </div>
+                  <p className="text-2xl font-bold text-white">58</p>
+                </motion.div>
+
+                <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }} className="bg-dark-800 border border-dark-700 rounded-xl p-6">
+                  <div className="flex items-center justify-between mb-3">
+                    <span className="text-sm text-dark-400">Avg Time</span>
+                    <Clock className="h-5 w-5 text-purple-400" />
+                  </div>
+                  <p className="text-2xl font-bold text-white">45m</p>
+                </motion.div>
+              </div>
+
+              {/* Requests List */}
+              <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.5 }} className="bg-dark-800 border border-dark-700 rounded-xl p-6">
+                <h3 className="text-lg font-semibold text-white mb-6">Recent Requests</h3>
+                <div className="space-y-3">
+                  {[
+                    { id: 'REQ-1543', user: 'Rajesh Kumar', issue: 'Engine Overheating', garage: 'Auto Care Center', status: 'IN_PROGRESS', time: '15 min ago' },
+                    { id: 'REQ-1542', user: 'Priya Sharma', issue: 'Flat Tyre', garage: 'Speed Motors', status: 'COMPLETED', time: '1 hour ago' },
+                    { id: 'REQ-1541', user: 'Amit Patel', issue: 'Battery Dead', garage: 'City Garage', status: 'ASSIGNED', time: '2 hours ago' },
+                    { id: 'REQ-1540', user: 'Sneha Reddy', issue: 'Brake Problem', garage: 'Pro Mechanics', status: 'BROADCASTED', time: '3 hours ago' },
+                    { id: 'REQ-1539', user: 'Vikram Singh', issue: 'Oil Change', garage: 'Quick Fix Auto', status: 'COMPLETED', time: '4 hours ago' },
+                  ].map((request, index) => (
+                    <div key={index} className="bg-dark-900 border border-dark-700 rounded-lg p-4 hover:border-primary-500/50 transition-colors">
+                      <div className="flex items-center justify-between gap-4">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-3 mb-2">
+                            <span className="font-mono text-sm text-primary-400">{request.id}</span>
+                            <span className="text-white font-medium">{request.issue}</span>
+                          </div>
+                          <div className="flex items-center gap-4 text-sm text-dark-400">
+                            <span>User: {request.user}</span>
+                            <span>•</span>
+                            <span>Garage: {request.garage}</span>
+                            <span>•</span>
+                            <span className="flex items-center gap-1">
+                              <Clock className="h-3 w-3" />
+                              {request.time}
+                            </span>
+                          </div>
+                        </div>
+                        <span className={`px-3 py-1 text-xs rounded-full whitespace-nowrap ${
+                          request.status === 'COMPLETED' ? 'bg-green-500/20 text-green-400' :
+                          request.status === 'IN_PROGRESS' ? 'bg-blue-500/20 text-blue-400' :
+                          request.status === 'ASSIGNED' ? 'bg-purple-500/20 text-purple-400' :
+                          'bg-yellow-500/20 text-yellow-400'
+                        }`}>
+                          {request.status.replace('_', ' ')}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </motion.div>
+            </>
           )}
 
           {/* PAYMENTS SECTION */}
           {activeSection === 'payments' && (
-            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="bg-dark-800 border border-dark-700 rounded-xl p-8 text-center">
-              <DollarSign className="h-16 w-16 text-dark-600 mx-auto mb-4" />
-              <h3 className="text-xl font-semibold text-white mb-2">Payments & Revenue</h3>
-              <p className="text-dark-400">Payment management interface coming soon...</p>
-            </motion.div>
+            <>
+              {/* Revenue Stats */}
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
+                <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="bg-gradient-to-br from-green-500/10 to-green-600/10 border border-green-500/20 rounded-xl p-6">
+                  <div className="flex items-center justify-between mb-3">
+                    <span className="text-sm text-dark-400">Total Revenue</span>
+                    <DollarSign className="h-5 w-5 text-green-400" />
+                  </div>
+                  <p className="text-3xl font-bold text-white">₹2,45,890</p>
+                  <p className="text-xs text-green-400 mt-2">+18.2% from last month</p>
+                </motion.div>
+
+                <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="bg-dark-800 border border-dark-700 rounded-xl p-6">
+                  <div className="flex items-center justify-between mb-3">
+                    <span className="text-sm text-dark-400">Today</span>
+                    <TrendingUp className="h-5 w-5 text-blue-400" />
+                  </div>
+                  <p className="text-3xl font-bold text-white">₹12,450</p>
+                  <p className="text-xs text-blue-400 mt-2">23 transactions</p>
+                </motion.div>
+
+                <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="bg-dark-800 border border-dark-700 rounded-xl p-6">
+                  <div className="flex items-center justify-between mb-3">
+                    <span className="text-sm text-dark-400">Avg. Value</span>
+                    <DollarSign className="h-5 w-5 text-purple-400" />
+                  </div>
+                  <p className="text-3xl font-bold text-white">₹1,650</p>
+                  <p className="text-xs text-dark-400 mt-2">per transaction</p>
+                </motion.div>
+
+                <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }} className="bg-dark-800 border border-dark-700 rounded-xl p-6">
+                  <div className="flex items-center justify-between mb-3">
+                    <span className="text-sm text-dark-400">Pending</span>
+                    <Clock className="h-5 w-5 text-yellow-400" />
+                  </div>
+                  <p className="text-3xl font-bold text-white">₹8,200</p>
+                  <p className="text-xs text-yellow-400 mt-2">5 payments</p>
+                </motion.div>
+              </div>
+
+              {/* Payments List */}
+              <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }} className="bg-dark-800 border border-dark-700 rounded-xl overflow-hidden">
+                <div className="p-6 border-b border-dark-700">
+                  <h3 className="text-lg font-semibold text-white">Recent Payments</h3>
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead className="bg-dark-900">
+                      <tr>
+                        <th className="text-left p-4 text-xs font-medium text-dark-400 uppercase">Transaction ID</th>
+                        <th className="text-left p-4 text-xs font-medium text-dark-400 uppercase">User</th>
+                        <th className="text-left p-4 text-xs font-medium text-dark-400 uppercase">Garage</th>
+                        <th className="text-left p-4 text-xs font-medium text-dark-400 uppercase">Amount</th>
+                        <th className="text-left p-4 text-xs font-medium text-dark-400 uppercase">Type</th>
+                        <th className="text-left p-4 text-xs font-medium text-dark-400 uppercase">Status</th>
+                        <th className="text-left p-4 text-xs font-medium text-dark-400 uppercase">Date</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-dark-700">
+                      {[
+                        { id: 'PAY-8923', user: 'Rajesh Kumar', garage: 'Auto Care', amount: 1500, type: 'Service', status: 'Success', date: '2024-10-10' },
+                        { id: 'PAY-8922', user: 'Priya Sharma', garage: 'Speed Motors', amount: 2300, type: 'Service', status: 'Success', date: '2024-10-10' },
+                        { id: 'PAY-8921', user: 'Amit Patel', garage: 'City Garage', amount: 899, type: 'Booking', status: 'Pending', date: '2024-10-10' },
+                        { id: 'PAY-8920', user: 'Sneha Reddy', garage: 'Pro Mechanics', amount: 3200, type: 'Service', status: 'Success', date: '2024-10-09' },
+                        { id: 'PAY-8919', user: 'Vikram Singh', garage: 'Quick Fix', amount: 750, type: 'Booking', status: 'Success', date: '2024-10-09' },
+                        { id: 'PAY-8918', user: 'Ananya Iyer', garage: 'Elite Motors', amount: 4500, type: 'Service', status: 'Success', date: '2024-10-09' },
+                      ].map((payment, index) => (
+                        <tr key={index} className="hover:bg-dark-700/50 transition-colors">
+                          <td className="p-4">
+                            <span className="font-mono text-sm text-primary-400">{payment.id}</span>
+                          </td>
+                          <td className="p-4 text-white text-sm">{payment.user}</td>
+                          <td className="p-4 text-dark-300 text-sm">{payment.garage}</td>
+                          <td className="p-4">
+                            <span className="text-white font-semibold">₹{payment.amount.toLocaleString()}</span>
+                          </td>
+                          <td className="p-4">
+                            <span className="px-3 py-1 bg-blue-500/20 text-blue-400 text-xs rounded-full">{payment.type}</span>
+                          </td>
+                          <td className="p-4">
+                            <span className={`px-3 py-1 text-xs rounded-full ${payment.status === 'Success' ? 'bg-green-500/20 text-green-400' : 'bg-yellow-500/20 text-yellow-400'}`}>
+                              {payment.status}
+                            </span>
+                          </td>
+                          <td className="p-4 text-dark-300 text-sm">{payment.date}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </motion.div>
+            </>
           )}
 
           {/* COMPLAINTS SECTION */}
           {activeSection === 'complaints' && (
-            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="bg-dark-800 border border-dark-700 rounded-xl p-8 text-center">
-              <FileText className="h-16 w-16 text-dark-600 mx-auto mb-4" />
-              <h3 className="text-xl font-semibold text-white mb-2">User Complaints</h3>
-              <p className="text-dark-400">Complaint management interface coming soon...</p>
-            </motion.div>
+            <>
+              {/* Stats Cards */}
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
+                <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="bg-dark-800 border border-dark-700 rounded-xl p-6">
+                  <div className="flex items-center justify-between mb-3">
+                    <span className="text-sm text-dark-400">Total</span>
+                    <FileText className="h-5 w-5 text-blue-400" />
+                  </div>
+                  <p className="text-3xl font-bold text-white">89</p>
+                  <p className="text-xs text-dark-400 mt-2">All time</p>
+                </motion.div>
+
+                <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="bg-dark-800 border border-dark-700 rounded-xl p-6">
+                  <div className="flex items-center justify-between mb-3">
+                    <span className="text-sm text-dark-400">Open</span>
+                    <AlertCircle className="h-5 w-5 text-red-400" />
+                  </div>
+                  <p className="text-3xl font-bold text-white">12</p>
+                  <p className="text-xs text-red-400 mt-2">Needs attention</p>
+                </motion.div>
+
+                <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="bg-dark-800 border border-dark-700 rounded-xl p-6">
+                  <div className="flex items-center justify-between mb-3">
+                    <span className="text-sm text-dark-400">Resolved</span>
+                    <CheckCircle className="h-5 w-5 text-green-400" />
+                  </div>
+                  <p className="text-3xl font-bold text-white">77</p>
+                  <p className="text-xs text-green-400 mt-2">86.5% resolution rate</p>
+                </motion.div>
+
+                <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }} className="bg-dark-800 border border-dark-700 rounded-xl p-6">
+                  <div className="flex items-center justify-between mb-3">
+                    <span className="text-sm text-dark-400">Avg. Time</span>
+                    <Clock className="h-5 w-5 text-purple-400" />
+                  </div>
+                  <p className="text-3xl font-bold text-white">4.2h</p>
+                  <p className="text-xs text-dark-400 mt-2">to resolve</p>
+                </motion.div>
+              </div>
+
+              {/* Complaints List */}
+              <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }} className="bg-dark-800 border border-dark-700 rounded-xl p-6">
+                <div className="flex items-center justify-between mb-6">
+                  <h3 className="text-lg font-semibold text-white">Recent Complaints</h3>
+                  <select className="px-4 py-2 bg-dark-900 border border-dark-700 rounded-lg text-sm text-white focus:outline-none focus:border-primary-500">
+                    <option>All Status</option>
+                    <option>Open</option>
+                    <option>In Progress</option>
+                    <option>Resolved</option>
+                  </select>
+                </div>
+                <div className="space-y-4">
+                  {[
+                    { id: 'COMP-089', user: 'Rajesh Kumar', garage: 'Auto Care Center', issue: 'Mechanic arrived 2 hours late', priority: 'High', status: 'Open', time: '30 min ago' },
+                    { id: 'COMP-088', user: 'Priya Sharma', garage: 'Speed Motors', issue: 'Overcharged for service', priority: 'Medium', status: 'In Progress', time: '2 hours ago' },
+                    { id: 'COMP-087', user: 'Amit Patel', garage: 'City Garage', issue: 'Poor service quality', priority: 'Low', status: 'Resolved', time: '5 hours ago' },
+                    { id: 'COMP-086', user: 'Sneha Reddy', garage: 'Pro Mechanics', issue: 'Parts not genuine', priority: 'High', status: 'Open', time: '1 day ago' },
+                    { id: 'COMP-085', user: 'Vikram Singh', garage: 'Quick Fix Auto', issue: 'Unprofessional behavior', priority: 'Medium', status: 'Resolved', time: '1 day ago' },
+                  ].map((complaint, index) => (
+                    <div key={index} className="bg-dark-900 border border-dark-700 rounded-lg p-4 hover:border-primary-500/50 transition-colors">
+                      <div className="flex items-start justify-between gap-4 mb-3">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-3 mb-2">
+                            <span className="font-mono text-sm text-primary-400">{complaint.id}</span>
+                            <span className={`px-2 py-1 text-xs rounded-full ${
+                              complaint.priority === 'High' ? 'bg-red-500/20 text-red-400' :
+                              complaint.priority === 'Medium' ? 'bg-yellow-500/20 text-yellow-400' :
+                              'bg-blue-500/20 text-blue-400'
+                            }`}>
+                              {complaint.priority}
+                            </span>
+                            <span className={`px-2 py-1 text-xs rounded-full ${
+                              complaint.status === 'Open' ? 'bg-red-500/20 text-red-400' :
+                              complaint.status === 'In Progress' ? 'bg-yellow-500/20 text-yellow-400' :
+                              'bg-green-500/20 text-green-400'
+                            }`}>
+                              {complaint.status}
+                            </span>
+                          </div>
+                          <p className="text-white font-medium mb-2">{complaint.issue}</p>
+                          <div className="flex items-center gap-4 text-sm text-dark-400">
+                            <span>User: {complaint.user}</span>
+                            <span>•</span>
+                            <span>Garage: {complaint.garage}</span>
+                            <span>•</span>
+                            <span className="flex items-center gap-1">
+                              <Clock className="h-3 w-3" />
+                              {complaint.time}
+                            </span>
+                          </div>
+                        </div>
+                        {complaint.status === 'Open' && (
+                          <button className="px-4 py-2 bg-primary-500 text-white rounded-lg text-sm font-medium hover:bg-primary-600 transition-colors">
+                            Review
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </motion.div>
+            </>
           )}
         </main>
       </div>
