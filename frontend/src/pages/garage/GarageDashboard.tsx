@@ -16,7 +16,6 @@ import {
   Plus,
   Trash2,
   Pencil,
-  MapPin,
   ShieldCheck,
   Wrench,
   ToggleLeft,
@@ -75,12 +74,13 @@ const GarageDashboard = () => {
   const [editingMechanicId, setEditingMechanicId] = useState<string | null>(null);
   const [requests, setRequests] = useState<Array<{ _id: string; issueCategory: string; status: string; address: string; createdAt: string; userId?: { name?: string } }>>([]);
   const [loadingRequests, setLoadingRequests] = useState(false);
+  const [activeSection, setActiveSection] = useState<'dashboard' | 'services' | 'mechanics' | 'verification'>('dashboard');
 
   const navItems = [
-    { icon: Store, label: 'Dashboard', active: true },
-    { icon: Wrench, label: 'Services' },
-    { icon: Users, label: 'Mechanics' },
-    { icon: ShieldCheck, label: 'Verification' },
+    { icon: Store, label: 'Dashboard', key: 'dashboard' as const },
+    { icon: Wrench, label: 'Services', key: 'services' as const },
+    { icon: Users, label: 'Mechanics', key: 'mechanics' as const },
+    { icon: ShieldCheck, label: 'Verification', key: 'verification' as const },
   ];
 
   const fetchGarage = async () => {
@@ -247,7 +247,18 @@ const GarageDashboard = () => {
 
         <nav className="p-4 space-y-2">
           {navItems.map((item) => (
-            <button key={item.label} className="w-full flex items-center gap-3 px-4 py-3 rounded-lg bg-primary-500 text-white">
+            <button 
+              key={item.label} 
+              onClick={() => {
+                setActiveSection(item.key);
+                setSidebarOpen(false);
+              }}
+              className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
+                activeSection === item.key 
+                  ? 'bg-primary-500 text-white' 
+                  : 'text-dark-300 hover:bg-dark-700 hover:text-white'
+              }`}
+            >
               <item.icon className="w-5 h-5" />
               <span className="font-medium">{item.label}</span>
             </button>
@@ -277,7 +288,12 @@ const GarageDashboard = () => {
             <button onClick={() => setSidebarOpen(true)} className="lg:hidden text-white">
               <Menu size={24} />
             </button>
-            <h1 className="text-xl font-semibold text-white">Garage Operations</h1>
+            <h1 className="text-xl font-semibold text-white">
+              {activeSection === 'dashboard' && 'Garage Operations'}
+              {activeSection === 'services' && 'Services & Pricing'}
+              {activeSection === 'mechanics' && 'Mechanics Management'}
+              {activeSection === 'verification' && 'Verification Status'}
+            </h1>
             <div className="flex items-center gap-4">
               <button onClick={handleAvailabilityToggle} disabled={savingAvailability} className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors ${profile?.isAvailable ? 'bg-green-500 text-white' : 'bg-dark-700 text-dark-300'}`}>
                 {savingAvailability ? <Loader2 className="h-4 w-4 animate-spin" /> : profile?.isAvailable ? <ToggleRight className="h-4 w-4" /> : <ToggleLeft className="h-4 w-4" />}
@@ -295,7 +311,10 @@ const GarageDashboard = () => {
           {errorMessage && <div className="rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300">{errorMessage}</div>}
           {successMessage && <div className="rounded-lg border border-green-500/30 bg-green-500/10 px-4 py-3 text-sm text-green-300">{successMessage}</div>}
 
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+          {/* DASHBOARD SECTION */}
+          {activeSection === 'dashboard' && (
+            <>
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
             <div className="bg-dark-800 rounded-xl p-6 border border-dark-700">
               <div className="flex items-center justify-between mb-4">
                 <div className="p-3 bg-primary-500/10 rounded-lg"><AlertCircle className="w-6 h-6 text-primary-500" /></div>
@@ -326,110 +345,481 @@ const GarageDashboard = () => {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
-            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="bg-dark-800 rounded-xl border border-dark-700 p-6 xl:col-span-2">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-semibold text-white">Garage Profile</h3>
-                {loadingProfile ? <Loader2 className="h-4 w-4 animate-spin text-dark-400" /> : <span className="text-sm text-dark-400">{profile?.name || 'Loading...'}</span>}
-              </div>
-              {profile ? (
-                <div className="grid gap-4 md:grid-cols-2">
-                  <div className="rounded-lg border border-dark-700 p-4"><p className="text-xs uppercase tracking-wide text-dark-500">Garage Name</p><p className="mt-2 text-white">{profile.name}</p></div>
-                  <div className="rounded-lg border border-dark-700 p-4"><p className="text-xs uppercase tracking-wide text-dark-500">Contact</p><p className="mt-2 text-white">{profile.phone}</p></div>
-                  <div className="rounded-lg border border-dark-700 p-4"><p className="text-xs uppercase tracking-wide text-dark-500">Address</p><p className="mt-2 text-white">{profile.address}</p></div>
-                  <div className="rounded-lg border border-dark-700 p-4"><p className="text-xs uppercase tracking-wide text-dark-500">City / State</p><p className="mt-2 text-white">{profile.city}, {profile.state}</p></div>
-                  <div className="rounded-lg border border-dark-700 p-4"><p className="text-xs uppercase tracking-wide text-dark-500">Pincode</p><p className="mt-2 text-white">{profile.pincode}</p></div>
-                  <div className="rounded-lg border border-dark-700 p-4"><p className="text-xs uppercase tracking-wide text-dark-500">Service Radius</p><p className="mt-2 text-white">{profile.serviceRadius} km</p></div>
-                  <div className="rounded-lg border border-dark-700 p-4"><p className="text-xs uppercase tracking-wide text-dark-500">Working Hours</p><p className="mt-2 text-white">{profile.is24x7 ? '24x7' : `${profile.openingTime || '—'} - ${profile.closingTime || '—'}`}</p></div>
-                  <div className="rounded-lg border border-dark-700 p-4"><p className="text-xs uppercase tracking-wide text-dark-500">Admin Feedback</p><p className="mt-2 text-white">{profile.verificationNotes || 'No feedback yet'}</p></div>
-                </div>
-              ) : (
-                <div className="text-sm text-dark-400">No profile found yet.</div>
-              )}
-            </motion.div>
-
-            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="bg-dark-800 rounded-xl border border-dark-700 p-6">
-              <h3 className="text-lg font-semibold text-white">Services & Pricing</h3>
-              <div className="mt-4 space-y-3">
-                <input value={serviceForm} onChange={(event) => setServiceForm(event.target.value)} placeholder="Add service" className="w-full rounded-lg border border-dark-700 bg-dark-900 px-3 py-2 text-sm text-white" />
-                <button onClick={() => void handleAddService()} className="w-full rounded-lg bg-primary-500 px-3 py-2 text-sm font-medium text-white">Add Service</button>
-                <div className="flex flex-wrap gap-2">
-                  {(profile?.services || []).map((service) => <span key={service} className="rounded-full bg-primary-500/10 px-3 py-1 text-sm text-primary-300">{service}</span>)}
-                </div>
-                <input value={priceForm} onChange={(event) => setPriceForm(event.target.value)} placeholder="Tyre Change:350" className="w-full rounded-lg border border-dark-700 bg-dark-900 px-3 py-2 text-sm text-white" />
-                <button onClick={() => void handleAddPrice()} className="w-full rounded-lg bg-dark-700 px-3 py-2 text-sm font-medium text-white">Save Pricing</button>
-                <div className="space-y-2">
-                  {pricingEntries.map(([service, price]) => <div key={service} className="flex items-center justify-between rounded-lg border border-dark-700 px-3 py-2 text-sm text-dark-300"><span>{service}</span><span>₹{price}</span></div>)}
-                </div>
-              </div>
-            </motion.div>
-          </div>
-
-          <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
-            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="bg-dark-800 rounded-xl border border-dark-700 p-6">
-              <div className="flex items-center justify-between">
-                <h3 className="text-lg font-semibold text-white">Incoming Requests</h3>
-                <Link to="/garage/requests" className="text-sm text-primary-400">View all</Link>
-              </div>
-              <div className="mt-4 space-y-3">
-                {loadingRequests ? <div className="text-sm text-dark-400">Loading requests...</div> : requests.length === 0 ? <div className="text-sm text-dark-400">No incoming requests right now.</div> : requests.slice(0, 4).map((request) => (
-                  <div key={request._id} className="rounded-lg border border-dark-700 p-3 text-sm text-dark-300">
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="font-medium text-white">{request.issueCategory.replace(/_/g, ' ')}</span>
-                      <span className="rounded-full bg-primary-500/10 px-2 py-1 text-xs text-primary-300">{request.status}</span>
-                    </div>
-                    <p className="mt-1 text-dark-400">{request.address}</p>
-                    <p className="mt-1 text-xs text-dark-500">{new Date(request.createdAt).toLocaleString()}</p>
+              <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
+                <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="bg-dark-800 rounded-xl border border-dark-700 p-6 xl:col-span-2">
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-lg font-semibold text-white">Garage Profile</h3>
+                    {loadingProfile ? <Loader2 className="h-4 w-4 animate-spin text-dark-400" /> : <span className="text-sm text-dark-400">{profile?.name || 'Loading...'}</span>}
                   </div>
-                ))}
-              </div>
-            </motion.div>
+                  {profile ? (
+                    <div className="grid gap-4 md:grid-cols-2">
+                      <div className="rounded-lg border border-dark-700 p-4"><p className="text-xs uppercase tracking-wide text-dark-500">Garage Name</p><p className="mt-2 text-white">{profile.name}</p></div>
+                      <div className="rounded-lg border border-dark-700 p-4"><p className="text-xs uppercase tracking-wide text-dark-500">Contact</p><p className="mt-2 text-white">{profile.phone}</p></div>
+                      <div className="rounded-lg border border-dark-700 p-4"><p className="text-xs uppercase tracking-wide text-dark-500">Address</p><p className="mt-2 text-white">{profile.address}</p></div>
+                      <div className="rounded-lg border border-dark-700 p-4"><p className="text-xs uppercase tracking-wide text-dark-500">City / State</p><p className="mt-2 text-white">{profile.city}, {profile.state}</p></div>
+                      <div className="rounded-lg border border-dark-700 p-4"><p className="text-xs uppercase tracking-wide text-dark-500">Pincode</p><p className="mt-2 text-white">{profile.pincode}</p></div>
+                      <div className="rounded-lg border border-dark-700 p-4"><p className="text-xs uppercase tracking-wide text-dark-500">Service Radius</p><p className="mt-2 text-white">{profile.serviceRadius} km</p></div>
+                      <div className="rounded-lg border border-dark-700 p-4"><p className="text-xs uppercase tracking-wide text-dark-500">Working Hours</p><p className="mt-2 text-white">{profile.is24x7 ? '24x7' : `${profile.openingTime || '—'} - ${profile.closingTime || '—'}`}</p></div>
+                      <div className="rounded-lg border border-dark-700 p-4"><p className="text-xs uppercase tracking-wide text-dark-500">Admin Feedback</p><p className="mt-2 text-white">{profile.verificationNotes || 'No feedback yet'}</p></div>
+                    </div>
+                  ) : (
+                    <div className="text-sm text-dark-400">No profile found yet.</div>
+                  )}
+                </motion.div>
 
-            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="bg-dark-800 rounded-xl border border-dark-700 p-6">
-              <div className="flex items-center justify-between">
-                <h3 className="text-lg font-semibold text-white">Mechanics</h3>
-                <button onClick={() => setEditingMechanicId(null)} className="rounded-lg bg-primary-500 p-2 text-white"><Plus className="h-4 w-4" /></button>
-              </div>
-              <form onSubmit={handleSubmitMechanic} className="mt-4 space-y-3">
-                <input value={mechanicForm.name} onChange={(event) => setMechanicForm((prev) => ({ ...prev, name: event.target.value }))} placeholder="Mechanic name" className="w-full rounded-lg border border-dark-700 bg-dark-900 px-3 py-2 text-sm text-white" required />
-                <input value={mechanicForm.phone} onChange={(event) => setMechanicForm((prev) => ({ ...prev, phone: event.target.value }))} placeholder="Phone" className="w-full rounded-lg border border-dark-700 bg-dark-900 px-3 py-2 text-sm text-white" required />
-                <input value={mechanicForm.skills} onChange={(event) => setMechanicForm((prev) => ({ ...prev, skills: event.target.value }))} placeholder="Skills (comma separated)" className="w-full rounded-lg border border-dark-700 bg-dark-900 px-3 py-2 text-sm text-white" />
-                <input type="number" value={mechanicForm.experience} onChange={(event) => setMechanicForm((prev) => ({ ...prev, experience: event.target.value }))} placeholder="Experience in years" className="w-full rounded-lg border border-dark-700 bg-dark-900 px-3 py-2 text-sm text-white" />
-                <button className="w-full rounded-lg bg-dark-700 px-3 py-2 text-sm font-medium text-white">{editingMechanicId ? 'Save Mechanic' : 'Add Mechanic'}</button>
-              </form>
-              <div className="mt-6 space-y-3">
-                {loadingMechanics ? <div className="text-sm text-dark-400">Loading mechanics...</div> : mechanics.map((mechanic) => (
-                  <div key={mechanic._id} className="rounded-lg border border-dark-700 p-3">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="font-medium text-white">{mechanic.name}</p>
-                        <p className="text-sm text-dark-400">{mechanic.phone}</p>
+                <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="bg-dark-800 rounded-xl border border-dark-700 p-6">
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-lg font-semibold text-white">Quick Stats</h3>
+                  </div>
+                  <div className="space-y-4">
+                    <div className="rounded-lg border border-dark-700 p-4">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs uppercase tracking-wide text-dark-500">Total Services</span>
+                        <span className="text-2xl font-bold text-white">{profile?.services?.length || 0}</span>
                       </div>
-                      <div className="flex items-center gap-2">
-                        <button onClick={() => { setEditingMechanicId(mechanic._id); setMechanicForm({ name: mechanic.name, phone: mechanic.phone, skills: mechanic.skills.join(', '), experience: String(mechanic.experience) }); }} className="rounded-lg p-2 text-dark-300 hover:bg-dark-700"><Pencil className="h-4 w-4" /></button>
-                        <button onClick={() => void handleDeleteMechanic(mechanic._id)} className="rounded-lg p-2 text-red-400 hover:bg-dark-700"><Trash2 className="h-4 w-4" /></button>
+                    </div>
+                    <div className="rounded-lg border border-dark-700 p-4">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs uppercase tracking-wide text-dark-500">Mechanics</span>
+                        <span className="text-2xl font-bold text-white">{mechanics.length}</span>
+                      </div>
+                    </div>
+                    <div className="rounded-lg border border-dark-700 p-4">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs uppercase tracking-wide text-dark-500">Visiting Charge</span>
+                        <span className="text-2xl font-bold text-white">₹{profile?.visitingCharge || 99}</span>
                       </div>
                     </div>
                   </div>
-                ))}
+                </motion.div>
               </div>
-            </motion.div>
 
-            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="bg-dark-800 rounded-xl border border-dark-700 p-6">
-              <h3 className="text-lg font-semibold text-white">Verification Status</h3>
-              <div className="mt-4 rounded-lg border border-dark-700 p-4">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-dark-400">Current status</span>
-                  <span className="rounded-full bg-primary-500/10 px-3 py-1 text-sm text-primary-300">{profile?.verificationStatus || 'PENDING'}</span>
+              <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
+                <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="bg-dark-800 rounded-xl border border-dark-700 p-6">
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-lg font-semibold text-white">Recent Requests</h3>
+                    <Link to="/garage/requests" className="text-sm text-primary-400 hover:text-primary-300">View all</Link>
+                  </div>
+                  <div className="mt-4 space-y-3">
+                    {loadingRequests ? (
+                      <div className="flex items-center justify-center py-8">
+                        <Loader2 className="h-6 w-6 animate-spin text-dark-400" />
+                      </div>
+                    ) : requests.length === 0 ? (
+                      <div className="text-center py-8">
+                        <AlertCircle className="h-12 w-12 text-dark-600 mx-auto mb-3" />
+                        <p className="text-sm text-dark-400">No requests yet</p>
+                      </div>
+                    ) : (
+                      requests.slice(0, 5).map((request) => (
+                        <div key={request._id} className="rounded-lg border border-dark-700 p-3 text-sm text-dark-300 hover:border-primary-500/30 transition-colors cursor-pointer" onClick={() => navigate('/garage/requests')}>
+                          <div className="flex items-center justify-between gap-2 mb-2">
+                            <span className="font-medium text-white">{request.issueCategory.replace(/_/g, ' ')}</span>
+                            <span className="rounded-full bg-primary-500/10 px-2 py-1 text-xs text-primary-300">{request.status}</span>
+                          </div>
+                          <p className="text-dark-400 text-xs mb-1">{request.address}</p>
+                          <p className="text-xs text-dark-500">{new Date(request.createdAt).toLocaleString()}</p>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </motion.div>
+
+                <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="bg-dark-800 rounded-xl border border-dark-700 p-6">
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-lg font-semibold text-white">Verification Status</h3>
+                  </div>
+                  <div className="rounded-lg border border-dark-700 p-4 mb-4">
+                    <div className="flex items-center justify-between mb-3">
+                      <span className="text-sm text-dark-400">Current Status</span>
+                      <span className={`rounded-full px-3 py-1 text-sm font-medium ${
+                        profile?.verificationStatus === 'APPROVED' ? 'bg-green-500/10 text-green-400' :
+                        profile?.verificationStatus === 'REJECTED' ? 'bg-red-500/10 text-red-400' :
+                        'bg-yellow-500/10 text-yellow-400'
+                      }`}>
+                        {profile?.verificationStatus || 'PENDING'}
+                      </span>
+                    </div>
+                    {profile?.verificationNotes && (
+                      <p className="text-sm text-dark-300 mt-2">{profile.verificationNotes}</p>
+                    )}
+                  </div>
+                  <div className="space-y-2">
+                    <button 
+                      onClick={() => setActiveSection('verification')}
+                      className="w-full rounded-lg bg-primary-500/10 px-4 py-2 text-sm font-medium text-primary-400 hover:bg-primary-500/20 transition-colors"
+                    >
+                      View Full Verification Details
+                    </button>
+                  </div>
+                </motion.div>
+              </div>
+            </>
+          )}
+
+          {/* SERVICES SECTION */}
+          {activeSection === 'services' && (
+            <>
+              <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="bg-dark-800 rounded-xl border border-dark-700 p-6">
+                <h3 className="text-lg font-semibold text-white mb-6">Manage Services</h3>
+                <div className="grid gap-6 md:grid-cols-2">
+                  <div>
+                    <label className="block text-sm font-medium text-dark-300 mb-2">Add New Service</label>
+                    <div className="flex gap-2">
+                      <input 
+                        value={serviceForm} 
+                        onChange={(event) => setServiceForm(event.target.value)} 
+                        onKeyDown={(e) => e.key === 'Enter' && void handleAddService()}
+                        placeholder="e.g., Tyre Change" 
+                        className="flex-1 rounded-lg border border-dark-700 bg-dark-900 px-3 py-2 text-sm text-white placeholder:text-dark-500 focus:border-primary-500 focus:outline-none" 
+                      />
+                      <button 
+                        onClick={() => void handleAddService()} 
+                        className="rounded-lg bg-primary-500 px-4 py-2 text-sm font-medium text-white hover:bg-primary-600 transition-colors"
+                      >
+                        <Plus className="h-4 w-4" />
+                      </button>
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-dark-300 mb-2">Visiting Charge</label>
+                    <div className="rounded-lg border border-dark-700 p-3 bg-dark-900">
+                      <span className="text-2xl font-bold text-white">₹{profile?.visitingCharge || 99}</span>
+                      <span className="text-sm text-dark-400 ml-2">per visit</span>
+                    </div>
+                  </div>
                 </div>
-                <p className="mt-4 text-sm text-dark-300">{profile?.verificationNotes || 'Your garage is being reviewed by the admin team.'}</p>
-              </div>
-              <div className="mt-6 space-y-3">
-                <div className="rounded-lg border border-dark-700 p-3 text-sm text-dark-300"><div className="flex items-center gap-2"><MapPin className="h-4 w-4 text-primary-400" />Location and service radius are ready for admin review.</div></div>
-                <div className="rounded-lg border border-dark-700 p-3 text-sm text-dark-300"><div className="flex items-center gap-2"><Clock className="h-4 w-4 text-primary-400" />Working hours and 24x7 availability are visible to admins.</div></div>
-              </div>
-            </motion.div>
-          </div>
+
+                <div className="mt-8">
+                  <h4 className="text-md font-semibold text-white mb-4">Available Services ({profile?.services?.length || 0})</h4>
+                  {(profile?.services || []).length === 0 ? (
+                    <div className="text-center py-8 border border-dashed border-dark-700 rounded-lg">
+                      <Wrench className="h-12 w-12 text-dark-600 mx-auto mb-3" />
+                      <p className="text-sm text-dark-400">No services added yet</p>
+                    </div>
+                  ) : (
+                    <div className="grid gap-3 md:grid-cols-3 lg:grid-cols-4">
+                      {(profile?.services || []).map((service) => (
+                        <div key={service} className="rounded-lg bg-primary-500/10 border border-primary-500/20 px-4 py-3 text-sm text-primary-300 flex items-center justify-between">
+                          <span>{service}</span>
+                          <CheckCircle className="h-4 w-4" />
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </motion.div>
+
+              <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="bg-dark-800 rounded-xl border border-dark-700 p-6">
+                <h3 className="text-lg font-semibold text-white mb-6">Service Pricing</h3>
+                <div className="mb-6">
+                  <label className="block text-sm font-medium text-dark-300 mb-2">Add/Update Service Price</label>
+                  <div className="flex gap-2">
+                    <input 
+                      value={priceForm} 
+                      onChange={(event) => setPriceForm(event.target.value)} 
+                      onKeyDown={(e) => e.key === 'Enter' && void handleAddPrice()}
+                      placeholder="Service Name:Price (e.g., Tyre Change:350)" 
+                      className="flex-1 rounded-lg border border-dark-700 bg-dark-900 px-3 py-2 text-sm text-white placeholder:text-dark-500 focus:border-primary-500 focus:outline-none" 
+                    />
+                    <button 
+                      onClick={() => void handleAddPrice()} 
+                      className="rounded-lg bg-primary-500 px-4 py-2 text-sm font-medium text-white hover:bg-primary-600 transition-colors"
+                    >
+                      Save
+                    </button>
+                  </div>
+                  <p className="text-xs text-dark-500 mt-2">Format: ServiceName:Price (e.g., "Tyre Change:350")</p>
+                </div>
+
+                <div>
+                  <h4 className="text-md font-semibold text-white mb-4">Current Pricing ({pricingEntries.length} services)</h4>
+                  {pricingEntries.length === 0 ? (
+                    <div className="text-center py-8 border border-dashed border-dark-700 rounded-lg">
+                      <DollarSign className="h-12 w-12 text-dark-600 mx-auto mb-3" />
+                      <p className="text-sm text-dark-400">No pricing set yet</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      {pricingEntries.map(([service, price]) => (
+                        <div key={service} className="flex items-center justify-between rounded-lg border border-dark-700 px-4 py-3 hover:border-primary-500/30 transition-colors">
+                          <span className="text-sm text-white font-medium">{service}</span>
+                          <span className="text-lg font-bold text-primary-400">₹{price}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </motion.div>
+            </>
+          )}
+
+          {/* MECHANICS SECTION */}
+          {activeSection === 'mechanics' && (
+            <>
+              <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="bg-dark-800 rounded-xl border border-dark-700 p-6">
+                <div className="flex items-center justify-between mb-6">
+                  <h3 className="text-lg font-semibold text-white">Add/Edit Mechanic</h3>
+                  {editingMechanicId && (
+                    <button
+                      onClick={() => {
+                        setEditingMechanicId(null);
+                        setMechanicForm({ name: '', phone: '', skills: '', experience: '0' });
+                      }}
+                      className="text-sm text-dark-400 hover:text-white"
+                    >
+                      Cancel Edit
+                    </button>
+                  )}
+                </div>
+                <form onSubmit={handleSubmitMechanic} className="grid gap-4 md:grid-cols-2">
+                  <div>
+                    <label className="block text-sm font-medium text-dark-300 mb-2">Name *</label>
+                    <input 
+                      value={mechanicForm.name} 
+                      onChange={(event) => setMechanicForm((prev) => ({ ...prev, name: event.target.value }))} 
+                      placeholder="Mechanic name" 
+                      className="w-full rounded-lg border border-dark-700 bg-dark-900 px-3 py-2 text-sm text-white placeholder:text-dark-500 focus:border-primary-500 focus:outline-none" 
+                      required 
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-dark-300 mb-2">Phone *</label>
+                    <input 
+                      value={mechanicForm.phone} 
+                      onChange={(event) => setMechanicForm((prev) => ({ ...prev, phone: event.target.value }))} 
+                      placeholder="Phone number" 
+                      className="w-full rounded-lg border border-dark-700 bg-dark-900 px-3 py-2 text-sm text-white placeholder:text-dark-500 focus:border-primary-500 focus:outline-none" 
+                      required 
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-dark-300 mb-2">Skills</label>
+                    <input 
+                      value={mechanicForm.skills} 
+                      onChange={(event) => setMechanicForm((prev) => ({ ...prev, skills: event.target.value }))} 
+                      placeholder="Skills (comma separated)" 
+                      className="w-full rounded-lg border border-dark-700 bg-dark-900 px-3 py-2 text-sm text-white placeholder:text-dark-500 focus:border-primary-500 focus:outline-none" 
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-dark-300 mb-2">Experience (years)</label>
+                    <input 
+                      type="number" 
+                      min="0"
+                      value={mechanicForm.experience} 
+                      onChange={(event) => setMechanicForm((prev) => ({ ...prev, experience: event.target.value }))} 
+                      placeholder="Years of experience" 
+                      className="w-full rounded-lg border border-dark-700 bg-dark-900 px-3 py-2 text-sm text-white placeholder:text-dark-500 focus:border-primary-500 focus:outline-none" 
+                    />
+                  </div>
+                  <div className="md:col-span-2">
+                    <button 
+                      type="submit"
+                      className="w-full rounded-lg bg-primary-500 px-4 py-3 text-sm font-medium text-white hover:bg-primary-600 transition-colors"
+                    >
+                      {editingMechanicId ? 'Update Mechanic' : 'Add Mechanic'}
+                    </button>
+                  </div>
+                </form>
+              </motion.div>
+
+              <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="bg-dark-800 rounded-xl border border-dark-700 p-6">
+                <h3 className="text-lg font-semibold text-white mb-6">Team Members ({mechanics.length})</h3>
+                {loadingMechanics ? (
+                  <div className="flex items-center justify-center py-12">
+                    <Loader2 className="h-8 w-8 animate-spin text-dark-400" />
+                  </div>
+                ) : mechanics.length === 0 ? (
+                  <div className="text-center py-12 border border-dashed border-dark-700 rounded-lg">
+                    <Users className="h-16 w-16 text-dark-600 mx-auto mb-4" />
+                    <p className="text-sm text-dark-400 mb-2">No mechanics added yet</p>
+                    <p className="text-xs text-dark-500">Add your first team member above</p>
+                  </div>
+                ) : (
+                  <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                    {mechanics.map((mechanic) => (
+                      <div key={mechanic._id} className="rounded-lg border border-dark-700 p-4 hover:border-primary-500/30 transition-colors">
+                        <div className="flex items-start justify-between mb-3">
+                          <div className="flex-1">
+                            <p className="font-semibold text-white">{mechanic.name}</p>
+                            <p className="text-sm text-dark-400 mt-1">{mechanic.phone}</p>
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <button 
+                              onClick={() => { 
+                                setEditingMechanicId(mechanic._id); 
+                                setMechanicForm({ 
+                                  name: mechanic.name, 
+                                  phone: mechanic.phone, 
+                                  skills: mechanic.skills.join(', '), 
+                                  experience: String(mechanic.experience) 
+                                }); 
+                                window.scrollTo({ top: 0, behavior: 'smooth' });
+                              }} 
+                              className="rounded-lg p-2 text-dark-300 hover:bg-dark-700 hover:text-white transition-colors"
+                            >
+                              <Pencil className="h-4 w-4" />
+                            </button>
+                            <button 
+                              onClick={() => void handleDeleteMechanic(mechanic._id)} 
+                              className="rounded-lg p-2 text-red-400 hover:bg-dark-700 transition-colors"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </button>
+                          </div>
+                        </div>
+                        {mechanic.skills && mechanic.skills.length > 0 && (
+                          <div className="flex flex-wrap gap-1 mb-2">
+                            {mechanic.skills.slice(0, 3).map((skill, idx) => (
+                              <span key={idx} className="rounded bg-primary-500/10 px-2 py-1 text-xs text-primary-300">
+                                {skill}
+                              </span>
+                            ))}
+                            {mechanic.skills.length > 3 && (
+                              <span className="rounded bg-dark-700 px-2 py-1 text-xs text-dark-400">
+                                +{mechanic.skills.length - 3}
+                              </span>
+                            )}
+                          </div>
+                        )}
+                        <div className="flex items-center gap-4 text-xs text-dark-400 mt-3 pt-3 border-t border-dark-700">
+                          <span>{mechanic.experience || 0} yrs exp</span>
+                          <span className={`px-2 py-1 rounded ${mechanic.status === 'AVAILABLE' ? 'bg-green-500/10 text-green-400' : 'bg-dark-700 text-dark-400'}`}>
+                            {mechanic.status || 'AVAILABLE'}
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </motion.div>
+            </>
+          )}
+
+          {/* VERIFICATION SECTION */}
+          {activeSection === 'verification' && (
+            <>
+              <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="bg-dark-800 rounded-xl border border-dark-700 p-6">
+                <h3 className="text-lg font-semibold text-white mb-6">Verification Status</h3>
+                <div className="grid gap-6 md:grid-cols-2">
+                  <div className="rounded-lg border border-dark-700 p-6">
+                    <div className="flex items-center justify-between mb-4">
+                      <span className="text-sm text-dark-400">Current Status</span>
+                      <span className={`rounded-full px-4 py-2 text-sm font-semibold ${
+                        profile?.verificationStatus === 'APPROVED' ? 'bg-green-500/20 text-green-400' :
+                        profile?.verificationStatus === 'REJECTED' ? 'bg-red-500/20 text-red-400' :
+                        profile?.verificationStatus === 'CHANGES_REQUESTED' ? 'bg-yellow-500/20 text-yellow-400' :
+                        'bg-blue-500/20 text-blue-400'
+                      }`}>
+                        {profile?.verificationStatus || 'PENDING'}
+                      </span>
+                    </div>
+                    {profile?.verificationStatus === 'APPROVED' && (
+                      <div className="flex items-start gap-3 p-3 bg-green-500/10 rounded-lg border border-green-500/20">
+                        <CheckCircle className="h-5 w-5 text-green-400 flex-shrink-0 mt-0.5" />
+                        <div>
+                          <p className="text-sm font-medium text-green-400">Verified Garage</p>
+                          <p className="text-xs text-green-300/70 mt-1">Your garage is approved and visible to users</p>
+                        </div>
+                      </div>
+                    )}
+                    {profile?.verificationStatus === 'REJECTED' && (
+                      <div className="flex items-start gap-3 p-3 bg-red-500/10 rounded-lg border border-red-500/20">
+                        <AlertCircle className="h-5 w-5 text-red-400 flex-shrink-0 mt-0.5" />
+                        <div>
+                          <p className="text-sm font-medium text-red-400">Verification Rejected</p>
+                          <p className="text-xs text-red-300/70 mt-1">Please check the admin feedback below</p>
+                        </div>
+                      </div>
+                    )}
+                    {(!profile?.verificationStatus || profile?.verificationStatus === 'PENDING') && (
+                      <div className="flex items-start gap-3 p-3 bg-blue-500/10 rounded-lg border border-blue-500/20">
+                        <Clock className="h-5 w-5 text-blue-400 flex-shrink-0 mt-0.5" />
+                        <div>
+                          <p className="text-sm font-medium text-blue-400">Under Review</p>
+                          <p className="text-xs text-blue-300/70 mt-1">Admin is reviewing your garage profile</p>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="rounded-lg border border-dark-700 p-6">
+                    <h4 className="text-sm font-semibold text-white mb-4">Admin Feedback</h4>
+                    {profile?.verificationNotes ? (
+                      <div className="rounded-lg bg-dark-900 border border-dark-700 p-4">
+                        <p className="text-sm text-dark-300 leading-relaxed">{profile.verificationNotes}</p>
+                      </div>
+                    ) : (
+                      <div className="text-center py-6 border border-dashed border-dark-700 rounded-lg">
+                        <p className="text-sm text-dark-400">No feedback yet</p>
+                        <p className="text-xs text-dark-500 mt-1">Admin will provide feedback after review</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </motion.div>
+
+              <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="bg-dark-800 rounded-xl border border-dark-700 p-6">
+                <h3 className="text-lg font-semibold text-white mb-6">Verification Checklist</h3>
+                <div className="space-y-3">
+                  <div className="rounded-lg border border-dark-700 p-4 flex items-start gap-3">
+                    <CheckCircle className="h-5 w-5 text-green-400 flex-shrink-0 mt-0.5" />
+                    <div className="flex-1">
+                      <p className="text-sm font-medium text-white">Basic Information</p>
+                      <p className="text-xs text-dark-400 mt-1">Garage name, contact, and address are complete</p>
+                    </div>
+                  </div>
+                  <div className="rounded-lg border border-dark-700 p-4 flex items-start gap-3">
+                    <CheckCircle className="h-5 w-5 text-green-400 flex-shrink-0 mt-0.5" />
+                    <div className="flex-1">
+                      <p className="text-sm font-medium text-white">Location Details</p>
+                      <p className="text-xs text-dark-400 mt-1">Service radius: {profile?.serviceRadius || 0} km</p>
+                    </div>
+                  </div>
+                  <div className="rounded-lg border border-dark-700 p-4 flex items-start gap-3">
+                    <CheckCircle className="h-5 w-5 text-green-400 flex-shrink-0 mt-0.5" />
+                    <div className="flex-1">
+                      <p className="text-sm font-medium text-white">Working Hours</p>
+                      <p className="text-xs text-dark-400 mt-1">
+                        {profile?.is24x7 ? '24x7 Available' : `${profile?.openingTime || '—'} to ${profile?.closingTime || '—'}`}
+                      </p>
+                    </div>
+                  </div>
+                  <div className={`rounded-lg border border-dark-700 p-4 flex items-start gap-3 ${(profile?.services || []).length > 0 ? '' : 'opacity-50'}`}>
+                    {(profile?.services || []).length > 0 ? (
+                      <CheckCircle className="h-5 w-5 text-green-400 flex-shrink-0 mt-0.5" />
+                    ) : (
+                      <AlertCircle className="h-5 w-5 text-yellow-400 flex-shrink-0 mt-0.5" />
+                    )}
+                    <div className="flex-1">
+                      <p className="text-sm font-medium text-white">Services Offered</p>
+                      <p className="text-xs text-dark-400 mt-1">
+                        {(profile?.services || []).length > 0 
+                          ? `${profile?.services?.length} services added` 
+                          : 'No services added yet'}
+                      </p>
+                    </div>
+                  </div>
+                  <div className={`rounded-lg border border-dark-700 p-4 flex items-start gap-3 ${mechanics.length > 0 ? '' : 'opacity-50'}`}>
+                    {mechanics.length > 0 ? (
+                      <CheckCircle className="h-5 w-5 text-green-400 flex-shrink-0 mt-0.5" />
+                    ) : (
+                      <AlertCircle className="h-5 w-5 text-yellow-400 flex-shrink-0 mt-0.5" />
+                    )}
+                    <div className="flex-1">
+                      <p className="text-sm font-medium text-white">Team Members</p>
+                      <p className="text-xs text-dark-400 mt-1">
+                        {mechanics.length > 0 
+                          ? `${mechanics.length} mechanic${mechanics.length > 1 ? 's' : ''} added` 
+                          : 'No mechanics added yet'}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </motion.div>
+            </>
+          )}
         </main>
       </div>
     </div>
