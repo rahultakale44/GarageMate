@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 import { ArrowUp } from 'lucide-react';
+import GarageMateLogoIcon from '@/components/shared/GarageMateLogoIcon';
 
 const Footer = () => {
   const scrollToTop = () => {
@@ -11,11 +12,8 @@ const Footer = () => {
       <div className="container-custom">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-12 mb-12">
           <div>
-            <div className="flex items-center gap-2 mb-4">
-              <div className="w-10 h-10 bg-primary-500 rounded-lg flex items-center justify-center">
-                <span className="text-xl font-bold">G</span>
-              </div>
-              <span className="text-xl font-display font-bold">GarageMate</span>
+            <div className="mb-4">
+              <GarageMateLogoIcon size={50} showText={true} />
             </div>
             <p className="text-dark-400 text-sm">
               Your trusted platform for roadside assistance and verified local garage services.

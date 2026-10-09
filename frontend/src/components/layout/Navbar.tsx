@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Menu, X } from 'lucide-react';
+import GarageMateLogoIcon from '@/components/shared/GarageMateLogoIcon';
 
 const Navbar = () => {
   const [scrolled, setScrolled] = useState(false);
@@ -39,21 +40,16 @@ const Navbar = () => {
         <div className="container-custom">
           <div className="flex items-center justify-between">
             {/* Logo */}
-            <Link to="/" className="flex items-center gap-2">
+            <Link to="/" className="flex items-center">
               <motion.div
-                animate={{ scale: scrolled ? 0.9 : 1 }}
+                animate={{ scale: scrolled ? 0.85 : 1 }}
                 transition={{ duration: 0.3 }}
-                className="w-10 h-10 bg-primary-500 rounded-lg flex items-center justify-center"
               >
-                <span className="text-xl font-bold text-white">G</span>
+                <GarageMateLogoIcon 
+                  size={scrolled ? 45 : 55} 
+                  showText={true}
+                />
               </motion.div>
-              <span
-                className={`text-xl font-display font-bold transition-colors ${
-                  scrolled ? 'text-dark-900' : 'text-white'
-                }`}
-              >
-                GarageMate
-              </span>
             </Link>
 
             {/* Desktop Navigation */}
@@ -116,6 +112,11 @@ const Navbar = () => {
               className="fixed top-0 right-0 bottom-0 w-80 bg-white z-[70] lg:hidden overflow-y-auto"
             >
               <div className="p-6">
+                {/* Logo in Mobile Menu */}
+                <div className="flex items-center mb-6">
+                  <GarageMateLogoIcon size={50} showText={true} />
+                </div>
+
                 <button
                   onClick={() => setMobileMenuOpen(false)}
                   className="absolute top-6 right-6 p-2"

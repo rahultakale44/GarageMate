@@ -32,28 +32,67 @@ const HeroSection = () => {
 
   const headlineWords = ['STRANDED?', 'HELP IS ALREADY', 'ON THE WAY.'];
 
+  // Automotive parts images for the scrolling background
+  const automotiveImages = [
+    'https://images.unsplash.com/photo-1486262715619-67b85e0b08d3?w=400&h=300&fit=crop', // Mechanic working
+    'https://images.unsplash.com/photo-1492144534655-ae79c964c9d7?w=400&h=300&fit=crop', // Car parts
+    'https://images.unsplash.com/photo-1625047509168-a7026f36de04?w=400&h=300&fit=crop', // Engine parts
+    'https://images.unsplash.com/photo-1619642751034-765dfdf7c58e?w=400&h=300&fit=crop', // Car tools
+    'https://images.unsplash.com/photo-1487754180451-c456f719a1fc?w=400&h=300&fit=crop', // Engine
+    'https://images.unsplash.com/photo-1615906655593-ad0386982a0f?w=400&h=300&fit=crop', // Tire
+    'https://images.unsplash.com/photo-1530046339160-ce3e530c7d2f?w=400&h=300&fit=crop', // Brake disc
+    'https://images.unsplash.com/photo-1580414057798-1d56d4d4145c?w=400&h=300&fit=crop', // Workshop
+  ];
+
   return (
     <section
       ref={heroRef}
       className="relative min-h-screen flex items-center justify-center overflow-hidden bg-gradient-to-br from-dark-900 via-dark-800 to-dark-900"
     >
-      {/* Background Pattern */}
-      <div className="absolute inset-0 opacity-10">
-        <div className="absolute inset-0 bg-[linear-gradient(to_right,#f97316_1px,transparent_1px),linear-gradient(to_bottom,#f97316_1px,transparent_1px)] bg-[size:4rem_4rem]" />
+      {/* Infinite Scrolling Background Images */}
+      <div className="absolute inset-0 overflow-hidden opacity-40">
+        <motion.div
+          animate={{ x: [0, -2400] }}
+          transition={{
+            duration: 60,
+            repeat: Infinity,
+            ease: 'linear',
+          }}
+          className="flex absolute inset-0"
+          style={{ width: '4800px' }}
+        >
+          {/* First set of images */}
+          {automotiveImages.map((img, index) => (
+            <div
+              key={`first-${index}`}
+              className="flex-shrink-0 w-[300px] h-full bg-cover bg-center"
+              style={{
+                backgroundImage: `url(${img})`,
+                backgroundSize: 'cover',
+              }}
+            />
+          ))}
+          {/* Duplicate set for seamless loop */}
+          {automotiveImages.map((img, index) => (
+            <div
+              key={`second-${index}`}
+              className="flex-shrink-0 w-[300px] h-full bg-cover bg-center"
+              style={{
+                backgroundImage: `url(${img})`,
+                backgroundSize: 'cover',
+              }}
+            />
+          ))}
+        </motion.div>
       </div>
 
-      {/* Background Image with Parallax */}
-      <motion.div
-        initial={{ scale: 1.1, opacity: 0 }}
-        animate={{ scale: 1, opacity: 0.15 }}
-        transition={{ duration: 1.5, ease: 'easeOut' }}
-        className="hero-image absolute inset-0 transition-transform duration-1000 ease-out"
-        style={{
-          backgroundImage: 'url(https://images.unsplash.com/photo-1486262715619-67b85e0b08d3?w=1920)',
-          backgroundSize: 'cover',
-          backgroundPosition: 'center',
-        }}
-      />
+      {/* Lighter overlay for better image visibility */}
+      <div className="absolute inset-0 bg-gradient-to-br from-dark-900/60 via-dark-800/50 to-dark-900/60" />
+
+      {/* Background Pattern */}
+      <div className="absolute inset-0 opacity-5">
+        <div className="absolute inset-0 bg-[linear-gradient(to_right,#f97316_1px,transparent_1px),linear-gradient(to_bottom,#f97316_1px,transparent_1px)] bg-[size:4rem_4rem]" />
+      </div>
 
       {/* Content */}
       <div className="container-custom relative z-10 py-32">
@@ -71,6 +110,9 @@ const HeroSection = () => {
                     ease: [0.43, 0.13, 0.23, 0.96],
                   }}
                   className="text-5xl md:text-7xl lg:text-8xl font-display font-bold text-white leading-[1.1]"
+                  style={{
+                    textShadow: '0 4px 20px rgba(0,0,0,0.9), 0 2px 8px rgba(0,0,0,0.8), 0 1px 3px rgba(0,0,0,0.9)'
+                  }}
                 >
                   {line}
                 </motion.h1>
@@ -83,7 +125,10 @@ const HeroSection = () => {
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, delay: 1.2 }}
-            className="text-lg md:text-xl text-dark-300 max-w-2xl mx-auto"
+            className="text-lg md:text-xl text-white max-w-2xl mx-auto font-medium"
+            style={{
+              textShadow: '0 2px 12px rgba(0,0,0,0.9), 0 1px 6px rgba(0,0,0,0.8)'
+            }}
           >
             Verified local garages. Real-time mechanic tracking. Transparent roadside assistance.
           </motion.p>
