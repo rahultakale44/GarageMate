@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
+import { io } from 'socket.io-client';
 import {
   Store,
   Bell,
@@ -20,10 +21,14 @@ import {
   Wrench,
   ToggleLeft,
   ToggleRight,
+  Phone,
+  MapPin,
+  Car,
+  Send,
 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import axiosInstance from '@/lib/axios';
-import { API_ENDPOINTS } from '@/config/api';
+import { API_ENDPOINTS, SOCKET_URL } from '@/config/api';
 
 interface GarageProfile {
   _id: string;
@@ -72,12 +77,15 @@ const GarageDashboard = () => {
   const [priceForm, setPriceForm] = useState('');
   const [mechanicForm, setMechanicForm] = useState({ name: '', phone: '', skills: '', experience: '0' });
   const [editingMechanicId, setEditingMechanicId] = useState<string | null>(null);
-  const [requests, setRequests] = useState<Array<{ _id: string; issueCategory: string; status: string; address: string; createdAt: string; userId?: { name?: string } }>>([]);
+  const [requests, setRequests] = useState<Array<{ _id: string; issueCategory: string; status: string; address: string; createdAt: string; userId?: { name?: string; phone?: string }; vehicleId?: { brand?: string; vehicleModel?: string; registrationNumber?: string } }>>([]);
   const [loadingRequests, setLoadingRequests] = useState(false);
-  const [activeSection, setActiveSection] = useState<'dashboard' | 'services' | 'mechanics' | 'verification'>('dashboard');
+  const [activeSection, setActiveSection] = useState<'dashboard' | 'services' | 'mechanics' | 'verification' | 'requests'>('dashboard');
+  const [newRequestAlert, setNewRequestAlert] = useState(false);
+  const [selectedRequestId, setSelectedRequestId] = useState<string | null>(null);
 
   const navItems = [
     { icon: Store, label: 'Dashboard', key: 'dashboard' as const },
+    { icon: AlertCircle, label: 'Requests', key: 'requests' as const },
     { icon: Wrench, label: 'Services', key: 'services' as const },
     { icon: Users, label: 'Mechanics', key: 'mechanics' as const },
     { icon: ShieldCheck, label: 'Verification', key: 'verification' as const },
@@ -124,6 +132,50 @@ const GarageDashboard = () => {
     void fetchGarage();
     void fetchMechanics();
     void fetchRequests();
+
+    // Initialize Socket.IO connection for real-time updates
+    const token = localStorage.getItem('accessToken');
+    if (token) {
+      const socketInstance = io(SOCKET_URL, {
+        auth: { token },
+        transports: ['websocket', 'polling'],
+      });
+
+      socketInstance.on('connect', () => {
+        console.log('✅ Socket connected for garage owner');
+      });
+
+      // Listen for new requests
+      socketInstance.on('request:new', (data: any) => {
+        console.log('🔔 New request received:', data);
+        setNewRequestAlert(true);
+        // Play notification sound
+        const audio = new Audio('/notification.mp3');
+        audio.play().catch(() => console.log('Audio play failed'));
+        // Auto-refresh requests
+        void fetchRequests();
+        // Clear alert after 5 seconds
+        setTimeout(() => setNewRequestAlert(false), 5000);
+      });
+
+      // Listen for request status updates
+      socketInstance.on('request:status-changed', (data: any) => {
+        console.log('📝 Request status updated:', data);
+        void fetchRequests();
+      });
+
+      socketInstance.on('disconnect', () => {
+        console.log('❌ Socket disconnected');
+      });
+
+      socketInstance.on('connect_error', (error) => {
+        console.error('Socket connection error:', error);
+      });
+
+      return () => {
+        socketInstance.disconnect();
+      };
+    }
   }, []);
 
   const handleAvailabilityToggle = async () => {
@@ -252,8 +304,11 @@ const GarageDashboard = () => {
               onClick={() => {
                 setActiveSection(item.key);
                 setSidebarOpen(false);
+                if (item.key === 'requests') {
+                  setNewRequestAlert(false);
+                }
               }}
-              className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
+              className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors relative ${
                 activeSection === item.key 
                   ? 'bg-primary-500 text-white' 
                   : 'text-dark-300 hover:bg-dark-700 hover:text-white'
@@ -261,6 +316,17 @@ const GarageDashboard = () => {
             >
               <item.icon className="w-5 h-5" />
               <span className="font-medium">{item.label}</span>
+              {item.key === 'requests' && newRequestAlert && (
+                <span className="absolute right-3 top-1/2 -translate-y-1/2 flex h-3 w-3">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-3 w-3 bg-red-500"></span>
+                </span>
+              )}
+              {item.key === 'requests' && requests.filter(r => r.status === 'BROADCASTED' || r.status === 'OFFERS_RECEIVED' || r.status === 'SEARCHING_GARAGE').length > 0 && !newRequestAlert && (
+                <span className="absolute right-3 top-1/2 -translate-y-1/2 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center font-semibold">
+                  {requests.filter(r => r.status === 'BROADCASTED' || r.status === 'OFFERS_RECEIVED' || r.status === 'SEARCHING_GARAGE').length}
+                </span>
+              )}
             </button>
           ))}
         </nav>
@@ -290,6 +356,7 @@ const GarageDashboard = () => {
             </button>
             <h1 className="text-xl font-semibold text-white">
               {activeSection === 'dashboard' && 'Garage Operations'}
+              {activeSection === 'requests' && 'Incoming Requests'}
               {activeSection === 'services' && 'Services & Pricing'}
               {activeSection === 'mechanics' && 'Mechanics Management'}
               {activeSection === 'verification' && 'Verification Status'}
@@ -549,6 +616,219 @@ const GarageDashboard = () => {
                       ))}
                     </div>
                   )}
+                </div>
+              </motion.div>
+            </>
+          )}
+
+          {/* REQUESTS SECTION */}
+          {activeSection === 'requests' && (
+            <>
+              {newRequestAlert && (
+                <motion.div
+                  initial={{ opacity: 0, y: -20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="bg-gradient-to-r from-red-500 to-red-600 rounded-xl p-4 mb-6 flex items-center gap-3"
+                >
+                  <div className="flex h-12 w-12">
+                    <span className="animate-ping absolute inline-flex h-12 w-12 rounded-full bg-red-400 opacity-75"></span>
+                    <Bell className="relative h-12 w-12 text-white" />
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-white font-semibold text-lg">New Request Received!</p>
+                    <p className="text-red-100 text-sm">A user needs assistance right now</p>
+                  </div>
+                </motion.div>
+              )}
+
+              <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="bg-dark-800 rounded-xl border border-dark-700 p-6 mb-6">
+                <div className="flex items-center justify-between mb-6">
+                  <div>
+                    <h3 className="text-lg font-semibold text-white">Incoming Requests</h3>
+                    <p className="text-sm text-dark-400 mt-1">Real-time assistance requests from users</p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 px-3 py-2 bg-dark-700 rounded-lg">
+                      <div className="h-2 w-2 bg-green-400 rounded-full animate-pulse"></div>
+                      <span className="text-xs text-dark-300">Live</span>
+                    </div>
+                    <button
+                      onClick={() => void fetchRequests()}
+                      className="p-2 bg-dark-700 rounded-lg hover:bg-dark-600 transition-colors"
+                    >
+                      <Loader2 className={`h-4 w-4 text-dark-300 ${loadingRequests ? 'animate-spin' : ''}`} />
+                    </button>
+                  </div>
+                </div>
+
+                <div className="grid gap-4 mb-6 md:grid-cols-3">
+                  <div className="bg-dark-900 rounded-lg p-4 border border-dark-700">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-xs text-dark-400 uppercase tracking-wide">New Requests</span>
+                      <AlertCircle className="h-4 w-4 text-yellow-400" />
+                    </div>
+                    <p className="text-2xl font-bold text-white">
+                      {requests.filter(r => r.status === 'BROADCASTED' || r.status === 'OFFERS_RECEIVED' || r.status === 'SEARCHING_GARAGE').length}
+                    </p>
+                  </div>
+                  <div className="bg-dark-900 rounded-lg p-4 border border-dark-700">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-xs text-dark-400 uppercase tracking-wide">Active</span>
+                      <Clock className="h-4 w-4 text-blue-400" />
+                    </div>
+                    <p className="text-2xl font-bold text-white">
+                      {requests.filter(r => ['MECHANIC_ASSIGNED', 'MECHANIC_ON_THE_WAY', 'MECHANIC_ARRIVED', 'SERVICE_IN_PROGRESS'].includes(r.status)).length}
+                    </p>
+                  </div>
+                  <div className="bg-dark-900 rounded-lg p-4 border border-dark-700">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-xs text-dark-400 uppercase tracking-wide">Total Today</span>
+                      <CheckCircle className="h-4 w-4 text-green-400" />
+                    </div>
+                    <p className="text-2xl font-bold text-white">{requests.length}</p>
+                  </div>
+                </div>
+
+                {loadingRequests ? (
+                  <div className="flex items-center justify-center py-12">
+                    <Loader2 className="h-8 w-8 animate-spin text-dark-400" />
+                    <span className="ml-3 text-dark-400">Loading requests...</span>
+                  </div>
+                ) : requests.length === 0 ? (
+                  <div className="text-center py-12 border border-dashed border-dark-700 rounded-lg">
+                    <AlertCircle className="h-16 w-16 text-dark-600 mx-auto mb-4" />
+                    <p className="text-sm text-dark-400 mb-2">No requests yet</p>
+                    <p className="text-xs text-dark-500">You'll be notified when users send assistance requests</p>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {requests.map((request, index) => (
+                      <motion.div
+                        key={request._id}
+                        initial={{ opacity: 0, x: -20 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ delay: index * 0.05 }}
+                        className={`rounded-lg border ${
+                          selectedRequestId === request._id 
+                            ? 'border-primary-500 bg-primary-500/5' 
+                            : 'border-dark-700 hover:border-dark-600'
+                        } p-4 cursor-pointer transition-all`}
+                        onClick={() => setSelectedRequestId(request._id === selectedRequestId ? null : request._id)}
+                      >
+                        <div className="flex items-start justify-between gap-4 mb-3">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-3 mb-2">
+                              <h4 className="text-white font-semibold">{request.issueCategory.replace(/_/g, ' ')}</h4>
+                              {(request.status === 'BROADCASTED' || request.status === 'OFFERS_RECEIVED') && (
+                                <span className="px-2 py-1 bg-yellow-500/20 text-yellow-400 text-xs font-medium rounded-full animate-pulse">
+                                  ● NEW
+                                </span>
+                              )}
+                            </div>
+                            <p className="text-sm text-dark-400 mb-3">{request.address}</p>
+                            <div className="flex flex-wrap gap-3 text-xs text-dark-400">
+                              {request.userId?.name && (
+                                <span className="flex items-center gap-1">
+                                  <Car className="h-3 w-3" />
+                                  {request.userId.name}
+                                </span>
+                              )}
+                              {request.userId?.phone && (
+                                <span className="flex items-center gap-1">
+                                  <Phone className="h-3 w-3" />
+                                  {request.userId.phone}
+                                </span>
+                              )}
+                              <span className="flex items-center gap-1">
+                                <Clock className="h-3 w-3" />
+                                {new Date(request.createdAt).toLocaleString()}
+                              </span>
+                            </div>
+                          </div>
+                          <div className="flex flex-col gap-2 items-end">
+                            <span className={`px-3 py-1 rounded-full text-xs font-medium ${
+                              request.status === 'BROADCASTED' || request.status === 'OFFERS_RECEIVED' 
+                                ? 'bg-yellow-500/20 text-yellow-400'
+                                : request.status.includes('MECHANIC') || request.status.includes('SERVICE')
+                                ? 'bg-blue-500/20 text-blue-400'
+                                : 'bg-green-500/20 text-green-400'
+                            }`}>
+                              {request.status.replace(/_/g, ' ')}
+                            </span>
+                          </div>
+                        </div>
+
+                        {selectedRequestId === request._id && (
+                          <motion.div
+                            initial={{ opacity: 0, height: 0 }}
+                            animate={{ opacity: 1, height: 'auto' }}
+                            className="mt-4 pt-4 border-t border-dark-700"
+                          >
+                            <div className="grid gap-4 md:grid-cols-2 mb-4">
+                              {request.vehicleId && (
+                                <div className="bg-dark-900 rounded-lg p-3 border border-dark-700">
+                                  <p className="text-xs text-dark-400 mb-2">Vehicle Details</p>
+                                  <p className="text-sm text-white font-medium">
+                                    {request.vehicleId.brand} {request.vehicleId.vehicleModel}
+                                  </p>
+                                  <p className="text-xs text-dark-400 mt-1">{request.vehicleId.registrationNumber}</p>
+                                </div>
+                              )}
+                              <div className="bg-dark-900 rounded-lg p-3 border border-dark-700">
+                                <p className="text-xs text-dark-400 mb-2">Location</p>
+                                <p className="text-sm text-white flex items-start gap-2">
+                                  <MapPin className="h-4 w-4 flex-shrink-0 mt-0.5" />
+                                  <span>{request.address}</span>
+                                </p>
+                              </div>
+                            </div>
+                            <div className="flex gap-2">
+                              {(request.status === 'BROADCASTED' || request.status === 'OFFERS_RECEIVED') && (
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    navigate(`/garage/requests/${request._id}`);
+                                  }}
+                                  className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-primary-500 text-white rounded-lg hover:bg-primary-600 transition-colors font-medium"
+                                >
+                                  <Send className="h-4 w-4" />
+                                  Submit Offer
+                                </button>
+                              )}
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  navigate(`/garage/requests/${request._id}`);
+                                }}
+                                className="flex-1 px-4 py-2 border border-dark-600 text-dark-300 rounded-lg hover:bg-dark-700 transition-colors"
+                              >
+                                View Details
+                              </button>
+                            </div>
+                          </motion.div>
+                        )}
+                      </motion.div>
+                    ))}
+                  </div>
+                )}
+              </motion.div>
+
+              <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="bg-gradient-to-r from-blue-900/20 to-purple-900/20 rounded-xl border border-blue-500/20 p-6">
+                <div className="flex items-start gap-4">
+                  <div className="p-3 bg-blue-500/10 rounded-lg">
+                    <Bell className="h-6 w-6 text-blue-400" />
+                  </div>
+                  <div>
+                    <h4 className="text-white font-semibold mb-2">Real-Time Notifications</h4>
+                    <p className="text-sm text-dark-300 leading-relaxed">
+                      You'll receive instant notifications when users send assistance requests. 
+                      Submit your offers quickly to win more customers!
+                    </p>
+                    <div className="mt-4 flex items-center gap-2">
+                      <div className="h-2 w-2 bg-green-400 rounded-full animate-pulse"></div>
+                      <span className="text-xs text-dark-400">Connected & Monitoring</span>
+                    </div>
+                  </div>
                 </div>
               </motion.div>
             </>
