@@ -58,7 +58,7 @@ const Navbar = () => {
                 <a
                   key={link.label}
                   href={link.href}
-                  className={`text-sm font-medium transition-colors hover:text-primary-500 ${
+                  className={`text-sm font-medium transition-colors hover:text-orange-500 ${
                     scrolled ? 'text-dark-700' : 'text-white'
                   }`}
                 >
@@ -71,9 +71,9 @@ const Navbar = () => {
             <div className="hidden lg:flex items-center gap-4">
               <Link
                 to="/get-started"
-                className={`px-6 py-2.5 rounded-full font-medium transition-all hover:scale-105 ${
+                className={`px-6 py-2.5 rounded-full font-medium transition-all hover:scale-105 shadow-lg hover:shadow-xl ${
                   scrolled
-                    ? 'bg-primary-500 text-white hover:bg-primary-600'
+                    ? 'bg-gradient-to-r from-orange-500 to-orange-600 text-white hover:from-orange-600 hover:to-orange-700'
                     : 'bg-white text-dark-900 hover:bg-dark-50'
                 }`}
               >
@@ -134,7 +134,7 @@ const Navbar = () => {
                       animate={{ opacity: 1, x: 0 }}
                       transition={{ delay: index * 0.1 }}
                       onClick={() => setMobileMenuOpen(false)}
-                      className="block text-xl font-medium text-dark-900 hover:text-primary-500"
+                      className="block text-xl font-medium text-dark-900 hover:text-orange-500 transition-colors"
                     >
                       {link.label}
                     </motion.a>
@@ -148,7 +148,7 @@ const Navbar = () => {
                   >
                     <Link
                       to="/get-started"
-                      className="block w-full py-3 px-6 bg-primary-500 text-white text-center rounded-full font-medium"
+                      className="block w-full py-3 px-6 bg-gradient-to-r from-orange-500 to-orange-600 text-white text-center rounded-full font-medium shadow-lg hover:from-orange-600 hover:to-orange-700 transition-all"
                       onClick={() => setMobileMenuOpen(false)}
                     >
                       Get Started

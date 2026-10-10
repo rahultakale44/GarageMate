@@ -50,13 +50,13 @@ const TrustSection = () => {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
               transition={{ duration: 0.5, delay: index * 0.1 }}
-              className="text-center"
+              className="text-center group hover:scale-105 transition-transform duration-300"
             >
-              <div className="inline-flex items-center justify-center w-16 h-16 bg-primary-500/10 rounded-2xl mb-6">
-                <feature.icon className="w-8 h-8 text-primary-500" />
+              <div className="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-br from-orange-500 to-red-500 rounded-2xl mb-6 shadow-xl group-hover:shadow-2xl transition-shadow">
+                <feature.icon className="w-10 h-10 text-white" strokeWidth={2.5} />
               </div>
-              <h3 className="text-xl font-semibold text-white mb-3">{feature.title}</h3>
-              <p className="text-dark-400">{feature.description}</p>
+              <h3 className="text-xl font-bold text-white mb-3 group-hover:text-orange-400 transition-colors">{feature.title}</h3>
+              <p className="text-dark-300 leading-relaxed">{feature.description}</p>
             </motion.div>
           ))}
         </div>

@@ -54,20 +54,22 @@ const HowItWorks = () => {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
               transition={{ duration: 0.5, delay: index * 0.15 }}
-              className="relative"
+              className="relative group"
             >
               {index < steps.length - 1 && (
-                <div className="hidden lg:block absolute top-16 left-full w-full h-0.5 bg-primary-200 -translate-x-1/2" />
+                <div className="hidden lg:block absolute top-12 left-full w-full h-1 bg-gradient-to-r from-orange-500 to-orange-300 -translate-x-1/2 z-0">
+                  <div className="absolute right-0 top-1/2 -translate-y-1/2 w-3 h-3 bg-orange-500 rounded-full animate-pulse" />
+                </div>
               )}
-              <div className="text-center">
-                <div className="inline-flex items-center justify-center w-20 h-20 bg-primary-500 rounded-2xl mb-6">
-                  <step.icon className="w-10 h-10 text-white" />
+              <div className="text-center relative z-10">
+                <div className="inline-flex items-center justify-center w-24 h-24 bg-gradient-to-br from-blue-400 to-cyan-400 rounded-2xl mb-6 shadow-xl group-hover:shadow-2xl group-hover:scale-110 transition-all duration-300">
+                  <step.icon className="w-12 h-12 text-white" strokeWidth={2.5} />
                 </div>
                 <div className="mb-4">
-                  <span className="text-6xl font-display font-bold text-primary-100">{step.number}</span>
+                  <span className="text-7xl font-display font-bold bg-gradient-to-br from-orange-100 to-orange-200 bg-clip-text text-transparent">{step.number}</span>
                 </div>
-                <h3 className="text-xl font-semibold text-dark-900 mb-3">{step.title}</h3>
-                <p className="text-dark-600">{step.description}</p>
+                <h3 className="text-xl font-bold text-dark-900 mb-3 group-hover:text-orange-600 transition-colors">{step.title}</h3>
+                <p className="text-dark-600 leading-relaxed">{step.description}</p>
               </div>
             </motion.div>
           ))}

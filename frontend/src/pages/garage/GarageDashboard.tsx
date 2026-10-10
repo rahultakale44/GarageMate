@@ -7,7 +7,6 @@ import {
   Bell,
   LogOut,
   Menu,
-  X,
   Clock,
   DollarSign,
   CheckCircle,
@@ -29,6 +28,7 @@ import {
 import { useAuth } from '@/context/AuthContext';
 import axiosInstance from '@/lib/axios';
 import { API_ENDPOINTS, SOCKET_URL } from '@/config/api';
+import GarageMateLogoIcon from '@/components/shared/GarageMateLogoIcon';
 
 interface GarageProfile {
   _id: string;
@@ -279,25 +279,17 @@ const GarageDashboard = () => {
   const pricingEntries = useMemo(() => Object.entries(profile?.servicePricing || {}), [profile?.servicePricing]);
 
   return (
-    <div className="min-h-screen bg-dark-900">
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-dark-900 to-dark-800">
       {sidebarOpen && (
         <div className="fixed inset-0 bg-black/50 z-40 lg:hidden" onClick={() => setSidebarOpen(false)} />
       )}
 
-      <aside className={`fixed top-0 left-0 bottom-0 w-64 bg-dark-800 border-r border-dark-700 z-50 transform transition-transform lg:translate-x-0 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
-        <div className="p-6 border-b border-dark-700 flex items-center justify-between">
-          <Link to="/" className="flex items-center gap-2">
-            <div className="w-10 h-10 bg-primary-500 rounded-lg flex items-center justify-center">
-              <span className="text-xl font-bold text-white">G</span>
-            </div>
-            <span className="text-xl font-display font-bold text-white">GarageMate</span>
-          </Link>
-          <button onClick={() => setSidebarOpen(false)} className="lg:hidden text-white">
-            <X size={24} />
-          </button>
+      <aside className={`fixed top-0 left-0 bottom-0 w-64 bg-gradient-to-b from-dark-900 to-dark-800 border-r-2 border-orange-500/20 z-50 transform transition-transform lg:translate-x-0 flex flex-col ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
+        <div className="px-6 py-4 border-b-2 border-orange-500/20 flex-shrink-0">
+          <h2 className="text-xl font-bold text-orange-500">GarageMate</h2>
         </div>
 
-        <nav className="p-4 space-y-2">
+        <nav className="flex-1 py-4 space-y-1 overflow-y-auto">
           {navItems.map((item) => (
             <button 
               key={item.label} 
@@ -308,22 +300,22 @@ const GarageDashboard = () => {
                   setNewRequestAlert(false);
                 }
               }}
-              className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors relative ${
+              className={`w-full flex items-center gap-3 px-6 py-3 transition-all relative ${
                 activeSection === item.key 
-                  ? 'bg-primary-500 text-white' 
-                  : 'text-dark-300 hover:bg-dark-700 hover:text-white'
+                  ? 'bg-gradient-to-r from-orange-500 to-orange-600 text-white shadow-lg border-l-4 border-orange-400' 
+                  : 'text-dark-300 hover:bg-dark-700 hover:text-white border-l-4 border-transparent'
               }`}
             >
-              <item.icon className="w-5 h-5" />
+              <item.icon className="w-5 h-5 flex-shrink-0" />
               <span className="font-medium">{item.label}</span>
               {item.key === 'requests' && newRequestAlert && (
-                <span className="absolute right-3 top-1/2 -translate-y-1/2 flex h-3 w-3">
+                <span className="absolute right-4 top-1/2 -translate-y-1/2 flex h-3 w-3">
                   <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
                   <span className="relative inline-flex rounded-full h-3 w-3 bg-red-500"></span>
                 </span>
               )}
               {item.key === 'requests' && requests.filter(r => r.status === 'BROADCASTED' || r.status === 'OFFERS_RECEIVED' || r.status === 'SEARCHING_GARAGE').length > 0 && !newRequestAlert && (
-                <span className="absolute right-3 top-1/2 -translate-y-1/2 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center font-semibold">
+                <span className="absolute right-4 top-1/2 -translate-y-1/2 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center font-semibold shadow-md">
                   {requests.filter(r => r.status === 'BROADCASTED' || r.status === 'OFFERS_RECEIVED' || r.status === 'SEARCHING_GARAGE').length}
                 </span>
               )}
@@ -331,9 +323,9 @@ const GarageDashboard = () => {
           ))}
         </nav>
 
-        <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-dark-700">
-          <div className="flex items-center gap-3 p-3 bg-dark-700 rounded-lg mb-2">
-            <div className="w-10 h-10 bg-primary-500 rounded-full flex items-center justify-center">
+        <div className="flex-shrink-0 p-4 border-t-2 border-orange-500/20">
+          <div className="flex items-center gap-3 p-3 bg-gradient-to-r from-dark-700 to-dark-800 rounded-lg mb-2 border border-orange-500/20">
+            <div className="w-10 h-10 bg-gradient-to-br from-orange-500 to-orange-600 rounded-full flex items-center justify-center shadow-md">
               <Store className="w-5 h-5 text-white" />
             </div>
             <div className="flex-1 min-w-0">
@@ -341,7 +333,7 @@ const GarageDashboard = () => {
               <p className="text-xs text-dark-400 truncate">{user?.email || 'Garage owner'}</p>
             </div>
           </div>
-          <button onClick={() => void logout().then(() => navigate('/'))} className="w-full flex items-center gap-2 px-4 py-2 text-red-400 hover:bg-dark-700 rounded-lg transition-colors">
+          <button onClick={() => void logout().then(() => navigate('/'))} className="w-full flex items-center gap-2 px-4 py-2 text-red-400 hover:bg-dark-700 rounded-lg transition-all hover:scale-105">
             <LogOut className="w-5 h-5" />
             <span className="font-medium">Logout</span>
           </button>
@@ -349,26 +341,31 @@ const GarageDashboard = () => {
       </aside>
 
       <div className="lg:ml-64">
-        <header className="bg-dark-800 border-b border-dark-700 sticky top-0 z-30">
+        <header className="bg-gradient-to-r from-dark-900 to-dark-800 border-b-2 border-orange-500/30 sticky top-0 z-30 shadow-lg">
           <div className="flex items-center justify-between p-4">
-            <button onClick={() => setSidebarOpen(true)} className="lg:hidden text-white">
-              <Menu size={24} />
-            </button>
-            <h1 className="text-xl font-semibold text-white">
-              {activeSection === 'dashboard' && 'Garage Operations'}
-              {activeSection === 'requests' && 'Incoming Requests'}
-              {activeSection === 'services' && 'Services & Pricing'}
-              {activeSection === 'mechanics' && 'Mechanics Management'}
-              {activeSection === 'verification' && 'Verification Status'}
-            </h1>
             <div className="flex items-center gap-4">
-              <button onClick={handleAvailabilityToggle} disabled={savingAvailability} className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors ${profile?.isAvailable ? 'bg-green-500 text-white' : 'bg-dark-700 text-dark-300'}`}>
+              <button onClick={() => setSidebarOpen(true)} className="lg:hidden text-white hover:text-orange-500">
+                <Menu size={24} />
+              </button>
+              <h1 className="text-xl font-semibold text-white">
+                {activeSection === 'dashboard' && 'Garage Operations'}
+                {activeSection === 'requests' && 'Incoming Requests'}
+                {activeSection === 'services' && 'Services & Pricing'}
+                {activeSection === 'mechanics' && 'Mechanics Management'}
+                {activeSection === 'verification' && 'Verification Status'}
+              </h1>
+            </div>
+            <div className="flex items-center gap-4">
+              <Link to="/" className="hover:scale-105 transition-transform">
+                <GarageMateLogoIcon size={40} showText={false} />
+              </Link>
+              <button onClick={handleAvailabilityToggle} disabled={savingAvailability} className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all shadow-md hover:shadow-lg hover:scale-105 ${profile?.isAvailable ? 'bg-gradient-to-r from-green-500 to-green-600 text-white' : 'bg-dark-700 text-dark-300 hover:bg-dark-600'}`}>
                 {savingAvailability ? <Loader2 className="h-4 w-4 animate-spin" /> : profile?.isAvailable ? <ToggleRight className="h-4 w-4" /> : <ToggleLeft className="h-4 w-4" />}
                 {profile?.isAvailable ? 'Available' : 'Offline'}
               </button>
-              <button className="relative p-2 hover:bg-dark-700 rounded-lg transition-colors">
-                <Bell className="w-6 h-6 text-dark-300" />
-                <span className="absolute top-1 right-1 w-2 h-2 bg-primary-500 rounded-full" />
+              <button className="relative p-2 hover:bg-dark-700 rounded-lg transition-all hover:scale-110">
+                <Bell className="w-6 h-6 text-orange-500" />
+                <span className="absolute top-1 right-1 w-2 h-2 bg-orange-500 rounded-full animate-pulse" />
               </button>
             </div>
           </div>
@@ -382,33 +379,33 @@ const GarageDashboard = () => {
           {activeSection === 'dashboard' && (
             <>
               <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-            <div className="bg-dark-800 rounded-xl p-6 border border-dark-700">
+            <div className="bg-gradient-to-br from-orange-500 to-orange-600 rounded-xl p-6 border-2 border-orange-400 shadow-xl hover:scale-105 transition-transform">
               <div className="flex items-center justify-between mb-4">
-                <div className="p-3 bg-primary-500/10 rounded-lg"><AlertCircle className="w-6 h-6 text-primary-500" /></div>
-                <span className="text-2xl font-bold text-white">{requests.filter((request) => !['CANCELLED', 'CLOSED', 'PAID'].includes(request.status)).length}</span>
+                <div className="p-3 bg-white/20 rounded-lg backdrop-blur-sm"><AlertCircle className="w-6 h-6 text-white" /></div>
+                <span className="text-3xl font-bold text-white">{requests.filter((request) => !['CANCELLED', 'CLOSED', 'PAID'].includes(request.status)).length}</span>
               </div>
-              <h3 className="text-sm font-medium text-dark-400">Incoming Requests</h3>
+              <h3 className="text-sm font-medium text-white/90">Incoming Requests</h3>
             </div>
-            <div className="bg-dark-800 rounded-xl p-6 border border-dark-700">
+            <div className="bg-gradient-to-br from-green-500 to-green-600 rounded-xl p-6 border-2 border-green-400 shadow-xl hover:scale-105 transition-transform">
               <div className="flex items-center justify-between mb-4">
-                <div className="p-3 bg-green-500/10 rounded-lg"><CheckCircle className="w-6 h-6 text-green-500" /></div>
-                <span className="text-2xl font-bold text-white">{requests.filter((request) => ['MECHANIC_ASSIGNED', 'MECHANIC_ON_THE_WAY', 'MECHANIC_ARRIVED', 'INSPECTION_STARTED', 'SERVICE_IN_PROGRESS'].includes(request.status)).length}</span>
+                <div className="p-3 bg-white/20 rounded-lg backdrop-blur-sm"><CheckCircle className="w-6 h-6 text-white" /></div>
+                <span className="text-3xl font-bold text-white">{requests.filter((request) => ['MECHANIC_ASSIGNED', 'MECHANIC_ON_THE_WAY', 'MECHANIC_ARRIVED', 'INSPECTION_STARTED', 'SERVICE_IN_PROGRESS'].includes(request.status)).length}</span>
               </div>
-              <h3 className="text-sm font-medium text-dark-400">Active Services</h3>
+              <h3 className="text-sm font-medium text-white/90">Active Services</h3>
             </div>
-            <div className="bg-dark-800 rounded-xl p-6 border border-dark-700">
+            <div className="bg-gradient-to-br from-yellow-500 to-amber-500 rounded-xl p-6 border-2 border-yellow-400 shadow-xl hover:scale-105 transition-transform">
               <div className="flex items-center justify-between mb-4">
-                <div className="p-3 bg-yellow-500/10 rounded-lg"><DollarSign className="w-6 h-6 text-yellow-500" /></div>
-                <span className="text-2xl font-bold text-white">₹{profile?.visitingCharge || 99}</span>
+                <div className="p-3 bg-white/20 rounded-lg backdrop-blur-sm"><DollarSign className="w-6 h-6 text-white" /></div>
+                <span className="text-3xl font-bold text-white">₹{profile?.visitingCharge || 99}</span>
               </div>
-              <h3 className="text-sm font-medium text-dark-400">Visiting Charge</h3>
+              <h3 className="text-sm font-medium text-white/90">Visiting Charge</h3>
             </div>
-            <div className="bg-dark-800 rounded-xl p-6 border border-dark-700">
+            <div className="bg-gradient-to-br from-blue-500 to-cyan-500 rounded-xl p-6 border-2 border-blue-400 shadow-xl hover:scale-105 transition-transform">
               <div className="flex items-center justify-between mb-4">
-                <div className="p-3 bg-blue-500/10 rounded-lg"><ShieldCheck className="w-6 h-6 text-blue-500" /></div>
-                <span className="text-2xl font-bold text-white">{profile?.verificationStatus || 'PENDING'}</span>
+                <div className="p-3 bg-white/20 rounded-lg backdrop-blur-sm"><ShieldCheck className="w-6 h-6 text-white" /></div>
+                <span className="text-xl font-bold text-white">{profile?.verificationStatus || 'PENDING'}</span>
               </div>
-              <h3 className="text-sm font-medium text-dark-400">Verification</h3>
+              <h3 className="text-sm font-medium text-white/90">Verification</h3>
             </div>
           </div>
 
@@ -514,7 +511,7 @@ const GarageDashboard = () => {
                   <div className="space-y-2">
                     <button 
                       onClick={() => setActiveSection('verification')}
-                      className="w-full rounded-lg bg-primary-500/10 px-4 py-2 text-sm font-medium text-primary-400 hover:bg-primary-500/20 transition-colors"
+                      className="w-full rounded-lg bg-gradient-to-r from-orange-500/20 to-orange-600/20 border-2 border-orange-500/30 px-4 py-2 text-sm font-medium text-orange-400 hover:bg-orange-500/30 transition-all hover:scale-105"
                     >
                       View Full Verification Details
                     </button>
@@ -542,7 +539,7 @@ const GarageDashboard = () => {
                       />
                       <button 
                         onClick={() => void handleAddService()} 
-                        className="rounded-lg bg-primary-500 px-4 py-2 text-sm font-medium text-white hover:bg-primary-600 transition-colors"
+                        className="rounded-lg bg-gradient-to-r from-orange-500 to-orange-600 px-4 py-2 text-sm font-medium text-white hover:from-orange-600 hover:to-orange-700 transition-all shadow-md hover:shadow-lg hover:scale-105"
                       >
                         <Plus className="h-4 w-4" />
                       </button>
@@ -591,7 +588,7 @@ const GarageDashboard = () => {
                     />
                     <button 
                       onClick={() => void handleAddPrice()} 
-                      className="rounded-lg bg-primary-500 px-4 py-2 text-sm font-medium text-white hover:bg-primary-600 transition-colors"
+                      className="rounded-lg bg-gradient-to-r from-orange-500 to-orange-600 px-4 py-2 text-sm font-medium text-white hover:from-orange-600 hover:to-orange-700 transition-all shadow-md hover:shadow-lg hover:scale-105"
                     >
                       Save
                     </button>
@@ -789,7 +786,7 @@ const GarageDashboard = () => {
                                     e.stopPropagation();
                                     navigate(`/garage/requests/${request._id}`);
                                   }}
-                                  className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-primary-500 text-white rounded-lg hover:bg-primary-600 transition-colors font-medium"
+                                  className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-gradient-to-r from-orange-500 to-orange-600 text-white rounded-lg hover:from-orange-600 hover:to-orange-700 transition-all shadow-md hover:shadow-lg font-medium"
                                 >
                                   <Send className="h-4 w-4" />
                                   Submit Offer
@@ -896,7 +893,7 @@ const GarageDashboard = () => {
                   <div className="md:col-span-2">
                     <button 
                       type="submit"
-                      className="w-full rounded-lg bg-primary-500 px-4 py-3 text-sm font-medium text-white hover:bg-primary-600 transition-colors"
+                      className="w-full rounded-lg bg-gradient-to-r from-orange-500 to-orange-600 px-4 py-3 text-sm font-medium text-white hover:from-orange-600 hover:to-orange-700 transition-all shadow-md hover:shadow-lg hover:scale-105"
                     >
                       {editingMechanicId ? 'Update Mechanic' : 'Add Mechanic'}
                     </button>

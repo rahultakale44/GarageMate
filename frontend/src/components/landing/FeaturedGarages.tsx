@@ -57,27 +57,34 @@ const FeaturedGarages = () => {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
               transition={{ duration: 0.5, delay: index * 0.1 }}
-              className="group bg-white border-2 border-dark-100 rounded-2xl overflow-hidden hover:border-primary-500 hover:shadow-xl transition-all"
+              className="group bg-white border-2 border-dark-200 rounded-2xl overflow-hidden hover:border-orange-500 hover:shadow-2xl transition-all duration-300 hover:scale-[1.02]"
             >
-              <div className="h-48 bg-gradient-to-br from-dark-100 to-dark-200 relative overflow-hidden">
-                <div className="absolute inset-0 bg-dark-900/20" />
+              <div className="h-48 bg-gradient-to-br from-orange-400 via-orange-500 to-red-500 relative overflow-hidden">
+                <div className="absolute inset-0 bg-gradient-to-t from-dark-900/40 to-transparent" />
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <div className="w-20 h-20 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center">
+                    <svg className="w-10 h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                    </svg>
+                  </div>
+                </div>
                 {garage.verified && (
-                  <div className="absolute top-4 right-4 px-3 py-1 bg-white/90 backdrop-blur-sm rounded-full flex items-center gap-1">
-                    <CheckCircle className="w-4 h-4 text-primary-500" />
-                    <span className="text-xs font-medium text-dark-900">Verified</span>
+                  <div className="absolute top-4 right-4 px-3 py-1.5 bg-white rounded-full flex items-center gap-1.5 shadow-lg">
+                    <CheckCircle className="w-4 h-4 text-green-500" />
+                    <span className="text-xs font-semibold text-dark-900">Verified</span>
                   </div>
                 )}
               </div>
 
               <div className="p-6">
                 <div className="flex items-start justify-between mb-3">
-                  <h3 className="text-xl font-semibold text-dark-900 group-hover:text-primary-500 transition-colors">
+                  <h3 className="text-xl font-semibold text-dark-900 group-hover:text-orange-500 transition-colors">
                     {garage.name}
                   </h3>
-                  <div className="flex items-center gap-1">
-                    <Star className="w-4 h-4 fill-primary-500 text-primary-500" />
-                    <span className="text-sm font-medium text-dark-900">{garage.rating}</span>
-                    <span className="text-sm text-dark-500">({garage.reviews})</span>
+                  <div className="flex items-center gap-1 bg-amber-50 px-2 py-1 rounded-lg">
+                    <Star className="w-4 h-4 fill-amber-500 text-amber-500" />
+                    <span className="text-sm font-bold text-dark-900">{garage.rating}</span>
+                    <span className="text-xs text-dark-500">({garage.reviews})</span>
                   </div>
                 </div>
 
@@ -96,14 +103,14 @@ const FeaturedGarages = () => {
                   {garage.services.map((service) => (
                     <span
                       key={service}
-                      className="px-2 py-1 bg-dark-50 text-xs text-dark-700 rounded-full"
+                      className="px-3 py-1.5 bg-gradient-to-r from-orange-50 to-amber-50 border border-orange-200 text-xs font-medium text-orange-700 rounded-full hover:from-orange-100 hover:to-amber-100 transition-colors"
                     >
                       {service}
                     </span>
                   ))}
                 </div>
 
-                <button className="w-full py-2.5 bg-primary-500 text-white rounded-lg font-medium hover:bg-primary-600 transition-colors">
+                <button className="w-full py-3 bg-gradient-to-r from-orange-500 to-orange-600 text-white rounded-lg font-semibold hover:from-orange-600 hover:to-orange-700 transition-all shadow-md hover:shadow-lg transform hover:scale-105">
                   View Garage
                 </button>
               </div>

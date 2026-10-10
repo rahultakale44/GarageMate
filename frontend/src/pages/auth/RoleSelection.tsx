@@ -1,6 +1,7 @@
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import { User, Store, Shield, ArrowLeft } from 'lucide-react';
+import GarageMateLogoIcon from '@/components/shared/GarageMateLogoIcon';
 
 const RoleSelection = () => {
   const roles = [
@@ -18,7 +19,7 @@ const RoleSelection = () => {
       title: 'Continue as Garage Owner',
       description: 'Register your garage, receive service requests, assign mechanics and manage earnings.',
       route: '/auth/garage/login',
-      color: 'from-primary-500 to-primary-600',
+      color: 'from-orange-500 to-orange-600',
     },
     {
       type: 'admin',
@@ -31,11 +32,18 @@ const RoleSelection = () => {
   ];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-dark-50 via-white to-primary-50">
+    <div className="min-h-screen bg-gradient-to-br from-white via-orange-50/30 to-orange-100/20">
+      {/* Logo in top-left corner */}
+      <div className="fixed top-6 left-6 z-50">
+        <Link to="/" className="hover:scale-105 transition-transform">
+          <GarageMateLogoIcon size={50} showText={true} />
+        </Link>
+      </div>
+
       <div className="container-custom py-12">
         <Link
           to="/"
-          className="inline-flex items-center gap-2 text-dark-600 hover:text-primary-500 mb-12 transition-colors"
+          className="inline-flex items-center gap-2 text-dark-600 hover:text-orange-500 mb-12 transition-colors"
         >
           <ArrowLeft className="w-5 h-5" />
           <span>Back to Home</span>
@@ -64,13 +72,13 @@ const RoleSelection = () => {
             >
               <Link
                 to={role.route}
-                className="group block h-full p-8 bg-white rounded-2xl border-2 border-dark-100 hover:border-primary-500 transition-all hover:shadow-2xl"
+                className="group block h-full p-8 bg-white/80 backdrop-blur-sm rounded-2xl border-2 border-orange-200/50 hover:border-orange-500 transition-all hover:shadow-2xl hover:shadow-orange-500/20"
               >
-                <div className={`inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br ${role.color} rounded-xl mb-6 group-hover:scale-110 transition-transform`}>
+                <div className={`inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br ${role.color} rounded-xl mb-6 group-hover:scale-110 transition-transform shadow-lg`}>
                   <role.icon className="w-8 h-8 text-white" />
                 </div>
                 
-                <h2 className="text-2xl font-semibold text-dark-900 mb-3 group-hover:text-primary-500 transition-colors">
+                <h2 className="text-2xl font-semibold text-dark-900 mb-3 group-hover:text-orange-500 transition-colors">
                   {role.title}
                 </h2>
                 
@@ -78,7 +86,7 @@ const RoleSelection = () => {
                   {role.description}
                 </p>
 
-                <div className="flex items-center gap-2 text-primary-500 font-medium group-hover:gap-4 transition-all">
+                <div className="flex items-center gap-2 text-orange-500 font-medium group-hover:gap-4 transition-all">
                   <span>Get Started</span>
                   <ArrowLeft className="w-5 h-5 rotate-180" />
                 </div>

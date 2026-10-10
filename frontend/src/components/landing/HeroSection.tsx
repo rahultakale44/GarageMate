@@ -142,21 +142,24 @@ const HeroSection = () => {
           >
             <Link
               to="/get-started"
-              className="group relative px-8 py-4 bg-primary-500 text-white rounded-full font-semibold text-lg overflow-hidden transition-all hover:scale-105 hover:shadow-xl hover:shadow-primary-500/50"
+              className="group relative px-8 py-4 bg-gradient-to-r from-orange-500 to-orange-600 text-white rounded-full font-semibold text-lg overflow-hidden transition-all hover:scale-105 hover:shadow-2xl hover:shadow-orange-500/50 border-2 border-orange-400"
             >
               <span className="relative z-10 flex items-center gap-2">
                 Get Emergency Help
                 <ArrowRight className="w-5 h-5 transition-transform group-hover:translate-x-1" />
               </span>
-              <div className="absolute inset-0 bg-primary-600 transform scale-x-0 group-hover:scale-x-100 transition-transform origin-left" />
+              <div className="absolute inset-0 bg-gradient-to-r from-orange-600 to-orange-700 transform scale-x-0 group-hover:scale-x-100 transition-transform origin-left" />
             </Link>
 
-            <button className="group px-8 py-4 bg-white/10 backdrop-blur-sm text-white rounded-full font-semibold text-lg border border-white/20 hover:bg-white/20 transition-all">
+            <Link
+              to="/user/nearby-garages"
+              className="group px-8 py-4 bg-white/10 backdrop-blur-sm text-white rounded-full font-semibold text-lg border-2 border-white/30 hover:bg-white/20 hover:border-white/50 transition-all hover:scale-105 hover:shadow-xl"
+            >
               <span className="flex items-center gap-2">
                 <MapPin className="w-5 h-5" />
                 Find Nearby Garages
               </span>
-            </button>
+            </Link>
           </motion.div>
 
           {/* Floating Stats */}
@@ -175,10 +178,11 @@ const HeroSection = () => {
                 key={stat.label}
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
+                whileHover={{ scale: 1.05, y: -5 }}
                 transition={{ delay: 2 + index * 0.1 }}
-                className="px-4 py-2 bg-white/5 backdrop-blur-sm rounded-full border border-white/10"
+                className="px-6 py-3 bg-white/10 backdrop-blur-md rounded-full border-2 border-orange-500/30 hover:border-orange-500/60 hover:bg-white/15 transition-all shadow-lg hover:shadow-xl"
               >
-                <span className="text-sm text-white/80">
+                <span className="text-sm font-medium text-white">
                   {stat.icon} {stat.label}
                 </span>
               </motion.div>
