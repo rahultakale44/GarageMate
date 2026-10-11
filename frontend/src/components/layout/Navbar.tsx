@@ -22,6 +22,7 @@ const Navbar = () => {
     { label: 'Services', href: '#services' },
     { label: 'Find Garages', href: '#garages' },
     { label: 'How It Works', href: '#how-it-works' },
+    { label: 'Pro', href: '/pro' },
     { label: 'Become a Partner', href: '#partner' },
   ];
 

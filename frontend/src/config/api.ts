@@ -145,4 +145,14 @@ export const API_ENDPOINTS = {
     RESOLVE_COMPLAINT: (id: string) => `/admin/complaints/${id}/resolve`,
     HIDE_REVIEW: (id: string) => `/admin/reviews/${id}/hide`,
   },
+  
+  // Subscriptions
+  SUBSCRIPTIONS: {
+    MY: '/subscriptions/my',
+    CREATE: '/subscriptions',
+    GET: (id: string) => `/subscriptions/${id}`,
+    CANCEL: (id: string) => `/subscriptions/${id}/cancel`,
+    ALL: '/subscriptions',
+    UPDATE_STATUS: (id: string) => `/subscriptions/${id}/status`,
+  },
 };

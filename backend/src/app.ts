@@ -22,6 +22,7 @@ import reviewRoutes from './routes/reviewRoutes';
 import complaintRoutes from './routes/complaintRoutes';
 import notificationRoutes from './routes/notificationRoutes';
 import adminRoutes from './routes/adminRoutes';
+import subscriptionRoutes from './routes/subscriptions';
 
 const app: Application = express();
 
@@ -86,6 +87,7 @@ app.use('/api/reviews', reviewRoutes);
 app.use('/api/complaints', complaintRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/subscriptions', subscriptionRoutes);
 
 // Rate limiting for API
 app.use('/api', apiLimiter);

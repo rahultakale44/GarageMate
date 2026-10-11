@@ -11,6 +11,7 @@ import PageLoader from './components/animation/PageLoader';
 // Public pages
 const LandingPage = lazy(() => import('./pages/public/LandingPage'));
 const RoleSelection = lazy(() => import('./pages/auth/RoleSelection'));
+const ProMembershipPage = lazy(() => import('./pages/public/ProMembershipPage'));
 
 // Auth pages
 const UserLogin = lazy(() => import('./pages/auth/UserLogin'));
@@ -31,6 +32,7 @@ const MyReviewsPage = lazy(() => import('./pages/user/MyReviewsPage'));
 // Garage pages
 const GarageDashboard = lazy(() => import('./pages/garage/GarageDashboard'));
 const GarageRequestsPage = lazy(() => import('./pages/garage/GarageRequestsPage'));
+const GaragePlansPage = lazy(() => import('./pages/garage/GaragePlansPage'));
 
 // Admin pages
 const AdminDashboard = lazy(() => import('./pages/admin/AdminDashboard'));
@@ -75,6 +77,7 @@ function AppRoutes() {
           <Routes>
             <Route path="/" element={<LandingPage />} />
             <Route path="/get-started" element={<RoleSelection />} />
+            <Route path="/pro" element={<ProMembershipPage />} />
 
             <Route path="/auth/user/login" element={<UserLogin />} />
             <Route path="/auth/user/register" element={<UserRegister />} />
@@ -97,6 +100,7 @@ function AppRoutes() {
               <Route path="/garage/dashboard" element={<GarageDashboard />} />
               <Route path="/garage/requests" element={<GarageRequestsPage />} />
               <Route path="/garage/requests/:id" element={<GarageRequestsPage />} />
+              <Route path="/garage/plans" element={<GaragePlansPage />} />
             </Route>
 
             <Route element={<ProtectedRoute allowedRoles={['ADMIN']} />}>
