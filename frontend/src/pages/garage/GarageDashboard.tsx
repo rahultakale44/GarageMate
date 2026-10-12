@@ -29,6 +29,9 @@ import { useAuth } from '@/context/AuthContext';
 import axiosInstance from '@/lib/axios';
 import { API_ENDPOINTS, SOCKET_URL } from '@/config/api';
 import GarageMateLogoIcon from '@/components/shared/GarageMateLogoIcon';
+import GarageSubscriptionCard from '@/components/subscription/GarageSubscriptionCard';
+import { getMySubscription } from '@/services/subscriptionService';
+import type { MySubscriptionResponse } from '@/types/subscription';
 
 interface GarageProfile {
   _id: string;
@@ -82,6 +85,11 @@ const GarageDashboard = () => {
   const [activeSection, setActiveSection] = useState<'dashboard' | 'services' | 'mechanics' | 'verification' | 'requests'>('dashboard');
   const [newRequestAlert, setNewRequestAlert] = useState(false);
   const [selectedRequestId, setSelectedRequestId] = useState<string | null>(null);
+  
+  // Subscription state
+  const [subscriptionData, setSubscriptionData] = useState<MySubscriptionResponse | null>(null);
+  const [loadingSubscription, setLoadingSubscription] = useState(false);
+  const [subscriptionError, setSubscriptionError] = useState<string | null>(null);
 
   const navItems = [
     { icon: Store, label: 'Dashboard', key: 'dashboard' as const },
@@ -128,10 +136,25 @@ const GarageDashboard = () => {
     }
   };
 
+  const fetchSubscription = async () => {
+    setLoadingSubscription(true);
+    setSubscriptionError(null);
+    try {
+      const data = await getMySubscription();
+      setSubscriptionData(data);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Unable to load subscription';
+      setSubscriptionError(message);
+    } finally {
+      setLoadingSubscription(false);
+    }
+  };
+
   useEffect(() => {
     void fetchGarage();
     void fetchMechanics();
     void fetchRequests();
+    void fetchSubscription();
 
     // Initialize Socket.IO connection for real-time updates
     const token = localStorage.getItem('accessToken');
@@ -431,31 +454,12 @@ const GarageDashboard = () => {
                   )}
                 </motion.div>
 
-                <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="bg-dark-800 rounded-xl border border-dark-700 p-6">
-                  <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-lg font-semibold text-white">Quick Stats</h3>
-                  </div>
-                  <div className="space-y-4">
-                    <div className="rounded-lg border border-dark-700 p-4">
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs uppercase tracking-wide text-dark-500">Total Services</span>
-                        <span className="text-2xl font-bold text-white">{profile?.services?.length || 0}</span>
-                      </div>
-                    </div>
-                    <div className="rounded-lg border border-dark-700 p-4">
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs uppercase tracking-wide text-dark-500">Mechanics</span>
-                        <span className="text-2xl font-bold text-white">{mechanics.length}</span>
-                      </div>
-                    </div>
-                    <div className="rounded-lg border border-dark-700 p-4">
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs uppercase tracking-wide text-dark-500">Visiting Charge</span>
-                        <span className="text-2xl font-bold text-white">₹{profile?.visitingCharge || 99}</span>
-                      </div>
-                    </div>
-                  </div>
-                </motion.div>
+                {/* Subscription Card */}
+                <GarageSubscriptionCard
+                  subscriptionData={subscriptionData}
+                  loading={loadingSubscription}
+                  error={subscriptionError}
+                />
               </div>
 
               <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">

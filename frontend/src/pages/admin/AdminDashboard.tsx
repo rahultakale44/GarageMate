@@ -21,6 +21,7 @@ import {
   Activity,
   UserCheck,
   Clock,
+  CreditCard,
 } from 'lucide-react';
 import {
   BarChart,
@@ -74,6 +75,7 @@ const AdminDashboard = () => {
     { icon: Store, label: 'Garages', key: 'garages' as const },
     { icon: CheckCircle, label: 'Verifications', key: 'verifications' as const },
     { icon: AlertCircle, label: 'Requests', key: 'requests' as const },
+    { icon: CreditCard, label: 'Subscriptions', key: 'subscriptions' as const },
     { icon: DollarSign, label: 'Payments', key: 'payments' as const },
     { icon: FileText, label: 'Complaints', key: 'complaints' as const },
   ];
@@ -180,8 +182,12 @@ const AdminDashboard = () => {
             <button 
               key={item.label} 
               onClick={() => {
-                setActiveSection(item.key);
-                setSidebarOpen(false);
+                if (item.key === 'subscriptions') {
+                  navigate('/admin/subscriptions');
+                } else {
+                  setActiveSection(item.key);
+                  setSidebarOpen(false);
+                }
               }}
               className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
                 activeSection === item.key

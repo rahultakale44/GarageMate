@@ -37,6 +37,7 @@ const GaragePlansPage = lazy(() => import('./pages/garage/GaragePlansPage'));
 // Admin pages
 const AdminDashboard = lazy(() => import('./pages/admin/AdminDashboard'));
 const AdminRequestsPage = lazy(() => import('./pages/admin/AdminRequestsPage'));
+const AdminSubscriptionsPage = lazy(() => import('./pages/admin/AdminSubscriptionsPage'));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -106,6 +107,7 @@ function AppRoutes() {
             <Route element={<ProtectedRoute allowedRoles={['ADMIN']} />}>
               <Route path="/admin/dashboard" element={<AdminDashboard />} />
               <Route path="/admin/requests" element={<AdminRequestsPage />} />
+              <Route path="/admin/subscriptions" element={<AdminSubscriptionsPage />} />
             </Route>
 
             <Route path="/redirect" element={<RedirectHandler />} />

@@ -20,6 +20,9 @@ import {
 import { useAuth } from '@/context/AuthContext';
 import axiosInstance from '@/lib/axios';
 import { API_ENDPOINTS } from '@/config/api';
+import UserSubscriptionCard from '@/components/subscription/UserSubscriptionCard';
+import { getMySubscription } from '@/services/subscriptionService';
+import type { MySubscriptionResponse } from '@/types/subscription';
 
 interface VehicleRecord {
   _id: string;
@@ -128,6 +131,11 @@ const UserDashboard = () => {
 
   const [requests, setRequests] = useState<RequestRecord[]>([]);
   const [loadingRequests, setLoadingRequests] = useState(false);
+  
+  // Subscription state
+  const [subscriptionData, setSubscriptionData] = useState<MySubscriptionResponse | null>(null);
+  const [loadingSubscription, setLoadingSubscription] = useState(false);
+  const [subscriptionError, setSubscriptionError] = useState<string | null>(null);
   
   // Load saved location from sessionStorage
   useEffect(() => {
@@ -273,9 +281,28 @@ const UserDashboard = () => {
     }
   };
 
+  const fetchSubscription = async () => {
+    if (!user) {
+      return;
+    }
+
+    setLoadingSubscription(true);
+    setSubscriptionError(null);
+    try {
+      const data = await getMySubscription();
+      setSubscriptionData(data);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Unable to load subscription';
+      setSubscriptionError(message);
+    } finally {
+      setLoadingSubscription(false);
+    }
+  };
+
   useEffect(() => {
     void fetchVehicles();
     void fetchRequests();
+    void fetchSubscription();
     
     // Fetch nearby garages if location is already saved
     if (userLocation) {
@@ -505,6 +532,13 @@ const UserDashboard = () => {
               </div>
             )}
           </motion.div>
+
+          {/* Subscription Card */}
+          <UserSubscriptionCard
+            subscriptionData={subscriptionData}
+            loading={loadingSubscription}
+            error={subscriptionError}
+          />
 
           {/* Emergency CTA */}
           <motion.div
