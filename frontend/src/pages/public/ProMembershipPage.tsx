@@ -1,15 +1,79 @@
-import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { 
   Check, X, Crown, Shield, Bell, History, Users, 
-  TrendingUp, ArrowRight, Sparkles 
+  TrendingUp, ArrowRight, Sparkles, Loader2 
 } from 'lucide-react';
 import Navbar from '@/components/layout/Navbar';
 import Footer from '@/components/layout/Footer';
+import RazorpayCheckout from '@/components/payment/RazorpayCheckout';
+import { useAuth } from '@/context/AuthContext';
+import { getMySubscription } from '@/services/subscriptionService';
+import { SubscriptionPlan, BillingInterval } from '@/types/subscription';
+import type { MySubscriptionResponse } from '@/types/subscription';
 
 const ProMembershipPage = () => {
+  const navigate = useNavigate();
+  const { user, isAuthenticated } = useAuth();
   const [billingInterval, setBillingInterval] = useState<'monthly' | 'annual'>('monthly');
+  const [showPayment, setShowPayment] = useState(false);
+  const [subscriptionData, setSubscriptionData] = useState<MySubscriptionResponse | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  // Fetch current subscription status if authenticated
+  useEffect(() => {
+    if (isAuthenticated && user?.role === 'USER') {
+      void fetchSubscription();
+    }
+  }, [isAuthenticated, user]);
+
+  const fetchSubscription = async () => {
+    setLoading(true);
+    try {
+      const data = await getMySubscription();
+      setSubscriptionData(data);
+    } catch (error) {
+      console.error('Failed to fetch subscription:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleUpgradeClick = () => {
+    if (!isAuthenticated) {
+      // Redirect to login
+      navigate('/auth/user/login');
+      return;
+    }
+
+    if (user?.role !== 'USER') {
+      alert('Pro membership is only available for drivers. Please log in with a driver account.');
+      return;
+    }
+
+    // Check if already has active subscription
+    if (subscriptionData && subscriptionData.plan === SubscriptionPlan.DRIVER_PRO && subscriptionData.status === 'ACTIVE') {
+      alert('You already have an active Pro subscription!');
+      return;
+    }
+
+    // Open payment modal
+    setShowPayment(true);
+  };
+
+  const handlePaymentSuccess = () => {
+    setShowPayment(false);
+    void fetchSubscription();
+    
+    // Show success and redirect to dashboard
+    alert('Welcome to GarageMate Pro! Your subscription is now active.');
+    navigate('/user/dashboard');
+  };
+
+  const handlePaymentClose = () => {
+    setShowPayment(false);
+  };
 
   const features = {
     free: [
@@ -206,13 +270,25 @@ const ProMembershipPage = () => {
                 )}
               </div>
 
-              <Link
-                to="/auth/user/login"
-                className="block w-full py-3 px-6 bg-white text-orange-600 text-center rounded-lg font-semibold hover:bg-orange-50 transition-all mb-8 shadow-lg"
+              <button
+                onClick={handleUpgradeClick}
+                disabled={loading}
+                className="block w-full py-3 px-6 bg-white text-orange-600 text-center rounded-lg font-semibold hover:bg-orange-50 transition-all mb-8 shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                Upgrade to Pro
-                <ArrowRight className="w-5 h-5 inline-block ml-2" />
-              </Link>
+                {loading ? (
+                  <span className="flex items-center justify-center gap-2">
+                    <Loader2 className="w-5 h-5 animate-spin" />
+                    Loading...
+                  </span>
+                ) : subscriptionData && subscriptionData.plan === SubscriptionPlan.DRIVER_PRO ? (
+                  'Manage Subscription'
+                ) : (
+                  <>
+                    Upgrade to Pro
+                    <ArrowRight className="w-5 h-5 inline-block ml-2" />
+                  </>
+                )}
+              </button>
 
               <div className="space-y-4">
                 {features.pro.map((feature) => (
@@ -330,18 +406,30 @@ const ProMembershipPage = () => {
             <p className="text-xl text-orange-100 mb-8 max-w-2xl mx-auto">
               Join thousands of drivers who trust GarageMate Pro for their vehicle care
             </p>
-            <Link
-              to="/auth/user/login"
-              className="inline-flex items-center gap-2 px-8 py-4 bg-white text-orange-600 rounded-full font-semibold text-lg hover:bg-orange-50 transition-all shadow-xl hover:scale-105"
+            <button
+              onClick={handleUpgradeClick}
+              disabled={loading}
+              className="inline-flex items-center gap-2 px-8 py-4 bg-white text-orange-600 rounded-full font-semibold text-lg hover:bg-orange-50 transition-all shadow-xl hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              Get Started with Pro
+              {loading ? 'Loading...' : 'Get Started with Pro'}
               <ArrowRight className="w-5 h-5" />
-            </Link>
+            </button>
           </motion.div>
         </div>
       </section>
 
       <Footer />
+
+      {/* Payment Modal */}
+      {showPayment && (
+        <RazorpayCheckout
+          plan={SubscriptionPlan.DRIVER_PRO}
+          billingInterval={billingInterval === 'monthly' ? BillingInterval.MONTHLY : BillingInterval.ANNUAL}
+          amount={currentPricing.amount}
+          onSuccess={handlePaymentSuccess}
+          onClose={handlePaymentClose}
+        />
+      )}
     </div>
   );
 };

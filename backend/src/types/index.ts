@@ -188,6 +188,7 @@ export interface AuthRequest extends Request {
     role: UserRole;
     email: string;
   };
+  subscription?: any; // Subscription document from middleware
 }
 
 export interface TokenPayload extends JwtPayload {

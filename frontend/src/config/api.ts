@@ -149,6 +149,9 @@ export const API_ENDPOINTS = {
   // Subscriptions
   SUBSCRIPTIONS: {
     MY: '/subscriptions/my',
+    PLANS: '/subscriptions/plans',
+    CREATE_ORDER: '/subscriptions/create-order',
+    VERIFY_PAYMENT: '/subscriptions/verify-payment',
     CREATE: '/subscriptions',
     GET: (id: string) => `/subscriptions/${id}`,
     CANCEL: (id: string) => `/subscriptions/${id}/cancel`,

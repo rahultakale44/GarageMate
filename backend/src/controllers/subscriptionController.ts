@@ -4,6 +4,179 @@ import { Subscription, SubscriptionPlan, SubscriptionStatus, BillingInterval } f
 import { Garage } from '../models/Garage';
 import { ApiError } from '../utils/ApiError';
 import { asyncHandler } from '../utils/asyncHandler';
+import { getRazorpayInstance } from '../config/razorpay';
+import { verifyRazorpaySignature } from '../utils/helpers';
+import {
+  getPlanAmount,
+  canPurchasePlan,
+  getPlansForRole,
+  calculatePeriodEnd,
+} from '../config/subscriptionPlans';
+
+// Get available plans for current user's role
+export const getAvailablePlans = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const userRole = req.user!.role;
+  
+  const plans = getPlansForRole(userRole);
+  
+  res.json({
+    success: true,
+    data: plans.map(plan => ({
+      id: plan.id,
+      name: plan.name,
+      pricing: plan.pricing,
+      features: plan.features,
+    })),
+  });
+});
+
+// Create subscription payment order
+export const createSubscriptionOrder = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const { plan, billingInterval, garageId } = req.body;
+  const userId = req.user!.userId;
+  const userRole = req.user!.role;
+
+  // Validate plan
+  if (!plan || !Object.values(SubscriptionPlan).includes(plan)) {
+    throw new ApiError(400, 'Invalid plan selected');
+  }
+
+  // Validate billing interval
+  if (!billingInterval || !Object.values(BillingInterval).includes(billingInterval)) {
+    throw new ApiError(400, 'Invalid billing interval');
+  }
+
+  // Validate that user can purchase this plan
+  if (!canPurchasePlan(plan, userRole)) {
+    throw new ApiError(403, 'You are not authorized to purchase this plan');
+  }
+
+  // Check for existing active subscription
+  const existingSubscription = await Subscription.findOne({
+    userId,
+    status: { $in: [SubscriptionStatus.ACTIVE, SubscriptionStatus.PAST_DUE, SubscriptionStatus.PENDING] },
+  });
+
+  if (existingSubscription) {
+    throw new ApiError(400, 'You already have an active subscription. Please cancel it before purchasing a new one.');
+  }
+
+  // Validate garage for garage owners
+  if (userRole === UserRole.GARAGE_OWNER) {
+    if (!garageId) {
+      throw new ApiError(400, 'Garage ID is required for garage owner subscriptions');
+    }
+
+    const garage = await Garage.findOne({ _id: garageId, owner: userId });
+    if (!garage) {
+      throw new ApiError(404, 'Garage not found or you do not own this garage');
+    }
+  }
+
+  // Get authoritative price from server configuration
+  const amount = getPlanAmount(plan, billingInterval);
+
+  // Create Razorpay order
+  try {
+    const razorpay = getRazorpayInstance();
+    
+    const order = await razorpay.orders.create({
+      amount: amount * 100, // Convert to paise
+      currency: 'INR',
+      receipt: `subscription_${plan}_${userId}_${Date.now()}`,
+      notes: {
+        plan,
+        billingInterval,
+        userId,
+        garageId: garageId || '',
+      },
+    });
+
+    // Create pending subscription record
+    const now = new Date();
+    const periodEnd = calculatePeriodEnd(now, billingInterval);
+
+    const subscription = await Subscription.create({
+      userId,
+      garageId: userRole === UserRole.GARAGE_OWNER ? garageId : undefined,
+      userRole,
+      plan,
+      status: SubscriptionStatus.PENDING,
+      billingInterval,
+      amount,
+      currentPeriodStart: now,
+      currentPeriodEnd: periodEnd,
+      metadata: {
+        razorpayOrderId: order.id,
+      },
+    });
+
+    res.status(201).json({
+      success: true,
+      message: 'Subscription order created. Please complete payment.',
+      data: {
+        orderId: order.id,
+        amount: order.amount,
+        currency: order.currency,
+        subscriptionId: subscription._id,
+      },
+    });
+  } catch (error) {
+    console.error('Razorpay order creation failed:', error);
+    throw new ApiError(500, 'Unable to create payment order. Please try again later.');
+  }
+});
+
+// Verify subscription payment
+export const verifySubscriptionPayment = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const { orderId, paymentId, signature, subscriptionId } = req.body;
+  const userId = req.user!.userId;
+
+  if (!orderId || !paymentId || !signature || !subscriptionId) {
+    throw new ApiError(400, 'Missing required payment verification details');
+  }
+
+  // Verify Razorpay signature
+  const isValidSignature = verifyRazorpaySignature(orderId, paymentId, signature);
+
+  if (!isValidSignature) {
+    throw new ApiError(400, 'Invalid payment signature. Payment verification failed.');
+  }
+
+  // Find the subscription
+  const subscription = await Subscription.findOne({
+    _id: subscriptionId,
+    userId,
+    status: SubscriptionStatus.PENDING,
+  });
+
+  if (!subscription) {
+    throw new ApiError(404, 'Subscription not found or already activated');
+  }
+
+  // Verify order ID matches
+  if (subscription.metadata?.razorpayOrderId !== orderId) {
+    throw new ApiError(400, 'Order ID mismatch. Invalid payment.');
+  }
+
+  // Activate subscription
+  subscription.status = SubscriptionStatus.ACTIVE;
+  subscription.startDate = new Date();
+  subscription.metadata = {
+    ...subscription.metadata,
+    razorpayPaymentId: paymentId,
+    razorpaySignature: signature,
+    activatedAt: new Date(),
+  };
+
+  await subscription.save();
+
+  res.json({
+    success: true,
+    message: 'Payment verified successfully. Your subscription is now active!',
+    data: subscription,
+  });
+});
 
 // Get my subscription
 export const getMySubscription = asyncHandler(async (req: AuthRequest, res: Response) => {

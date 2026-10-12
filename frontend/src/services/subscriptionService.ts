@@ -14,6 +14,33 @@ import type {
  * Handles all subscription-related API calls
  */
 
+// Get available plans for current user
+export const getAvailablePlans = async (): Promise<any[]> => {
+  const response = await axiosInstance.get(API_ENDPOINTS.SUBSCRIPTIONS.PLANS);
+  return response.data.data;
+};
+
+// Create subscription order (initiate payment)
+export const createSubscriptionOrder = async (data: {
+  plan: SubscriptionPlan;
+  billingInterval: BillingInterval;
+  garageId?: string;
+}): Promise<{ orderId: string; amount: number; currency: string; subscriptionId: string }> => {
+  const response = await axiosInstance.post(API_ENDPOINTS.SUBSCRIPTIONS.CREATE_ORDER, data);
+  return response.data.data;
+};
+
+// Verify subscription payment
+export const verifySubscriptionPayment = async (data: {
+  orderId: string;
+  paymentId: string;
+  signature: string;
+  subscriptionId: string;
+}): Promise<Subscription> => {
+  const response = await axiosInstance.post(API_ENDPOINTS.SUBSCRIPTIONS.VERIFY_PAYMENT, data);
+  return response.data.data;
+};
+
 // Get current user's subscription
 export const getMySubscription = async (): Promise<MySubscriptionResponse> => {
   const response = await axiosInstance.get(API_ENDPOINTS.SUBSCRIPTIONS.MY);
@@ -64,6 +91,9 @@ export const updateSubscriptionStatus = async (
 };
 
 export default {
+  getAvailablePlans,
+  createSubscriptionOrder,
+  verifySubscriptionPayment,
   getMySubscription,
   getSubscriptionById,
   createSubscription,

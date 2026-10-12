@@ -7,13 +7,21 @@ import {
   cancelSubscription,
   getAllSubscriptions,
   updateSubscriptionStatus,
+  getAvailablePlans,
+  createSubscriptionOrder,
+  verifySubscriptionPayment,
 } from '../controllers/subscriptionController';
 import { UserRole } from '../types';
 
 const router = Router();
 
+// Public/authenticated routes
+router.get('/plans', authenticate, getAvailablePlans);
+
 // User/Garage routes (authenticated)
 router.get('/my', authenticate, getMySubscription);
+router.post('/create-order', authenticate, createSubscriptionOrder);
+router.post('/verify-payment', authenticate, verifySubscriptionPayment);
 router.post('/', authenticate, createSubscription);
 router.post('/:id/cancel', authenticate, cancelSubscription);
 router.get('/:id', authenticate, getSubscription);

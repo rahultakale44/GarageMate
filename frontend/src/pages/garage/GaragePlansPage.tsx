@@ -1,14 +1,117 @@
-import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
   Check, Crown, Building2, TrendingUp, Users, BarChart3, 
-  Megaphone, Shield, Home
+  Megaphone, Shield, Home, Loader2
 } from 'lucide-react';
 import GarageMateLogoIcon from '@/components/shared/GarageMateLogoIcon';
+import RazorpayCheckout from '@/components/payment/RazorpayCheckout';
+import { useAuth } from '@/context/AuthContext';
+import { getMySubscription } from '@/services/subscriptionService';
+import { SubscriptionPlan, BillingInterval } from '@/types/subscription';
+import type { MySubscriptionResponse } from '@/types/subscription';
+import axiosInstance from '@/lib/axios';
 
 const GaragePlansPage = () => {
+  const navigate = useNavigate();
+  const { user, isAuthenticated } = useAuth();
   const [billingInterval, setBillingInterval] = useState<'monthly' | 'annual'>('monthly');
+  const [showPayment, setShowPayment] = useState(false);
+  const [selectedPlan, setSelectedPlan] = useState<SubscriptionPlan | null>(null);
+  const [subscriptionData, setSubscriptionData] = useState<MySubscriptionResponse | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  // Fetch current subscription status if authenticated
+  useEffect(() => {
+    if (isAuthenticated && user?.role === 'GARAGE_OWNER') {
+      void fetchSubscription();
+    }
+  }, [isAuthenticated, user]);
+
+  const fetchSubscription = async () => {
+    setLoading(true);
+    try {
+      const data = await getMySubscription();
+      setSubscriptionData(data);
+    } catch (error) {
+      console.error('Failed to fetch subscription:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleUpgradeClick = async (plan: SubscriptionPlan) => {
+    if (!isAuthenticated) {
+      // Redirect to login
+      navigate('/auth/garage/login');
+      return;
+    }
+
+    if (user?.role !== 'GARAGE_OWNER') {
+      alert('Partner plans are only available for garage owners. Please log in with a garage owner account.');
+      return;
+    }
+
+    // Check if already has active subscription for this plan
+    if (subscriptionData && subscriptionData.plan === plan && subscriptionData.status === 'ACTIVE') {
+      alert('You already have an active subscription for this plan!');
+      return;
+    }
+
+    // Fetch garage ID first
+    try {
+      setLoading(true);
+      const garageResponse = await axiosInstance.get('/garages/my-garage');
+      const garageId = garageResponse.data?.data?._id;
+      
+      if (!garageId) {
+        alert('Unable to find your garage. Please contact support.');
+        return;
+      }
+
+      // Store garageId temporarily for payment
+      sessionStorage.setItem('garageIdForPayment', garageId);
+
+      // Set selected plan and open payment modal
+      setSelectedPlan(plan);
+      setShowPayment(true);
+    } catch (error: any) {
+      console.error('Failed to fetch garage:', error);
+      alert(error.response?.data?.message || 'Failed to fetch garage information. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handlePaymentSuccess = () => {
+    setShowPayment(false);
+    setSelectedPlan(null);
+    sessionStorage.removeItem('garageIdForPayment');
+    void fetchSubscription();
+    
+    // Show success and redirect to dashboard
+    alert('Welcome to GarageMate Partner Pro! Your subscription is now active.');
+    navigate('/garage/dashboard');
+  };
+
+  const handlePaymentClose = () => {
+    setShowPayment(false);
+    setSelectedPlan(null);
+    sessionStorage.removeItem('garageIdForPayment');
+  };
+
+  const getPlanAmount = (plan: SubscriptionPlan): number => {
+    const pricing: Record<SubscriptionPlan, { monthly: number; annual: number }> = {
+      [SubscriptionPlan.PARTNER_PRO]: { monthly: 499, annual: 4999 },
+      [SubscriptionPlan.PARTNER_BUSINESS]: { monthly: 1499, annual: 14999 },
+      [SubscriptionPlan.DRIVER_PRO]: { monthly: 199, annual: 1999 },
+      [SubscriptionPlan.DRIVER_FREE]: { monthly: 0, annual: 0 },
+      [SubscriptionPlan.PARTNER_FREE]: { monthly: 0, annual: 0 },
+    };
+
+    return pricing[plan]?.[billingInterval] || 0;
+  };
 
   type PlanFeature = {
     text: string;
@@ -222,13 +325,42 @@ const GaragePlansPage = () => {
               </div>
 
               <button
-                className={`w-full py-3 px-6 rounded-lg font-semibold mb-8 transition-all ${
+                onClick={() => {
+                  if (key === 'free') {
+                    // Free plan - redirect to dashboard or register
+                    if (isAuthenticated) {
+                      navigate('/garage/dashboard');
+                    } else {
+                      navigate('/auth/garage/register');
+                    }
+                  } else if (key === 'pro') {
+                    handleUpgradeClick(SubscriptionPlan.PARTNER_PRO);
+                  } else if (key === 'business') {
+                    // Business plan - could be payment or contact sales
+                    alert('Partner Business plan features are coming soon! Contact sales for early access.');
+                  }
+                }}
+                disabled={loading}
+                className={`w-full py-3 px-6 rounded-lg font-semibold mb-8 transition-all disabled:opacity-50 disabled:cursor-not-allowed ${
                   plan.popular
                     ? 'bg-gradient-to-r from-orange-500 to-orange-600 text-white hover:from-orange-600 hover:to-orange-700 shadow-lg hover:shadow-xl'
                     : 'bg-dark-700 text-white hover:bg-dark-600'
                 }`}
               >
-                {plan.cta}
+                {loading ? (
+                  <span className="flex items-center justify-center gap-2">
+                    <Loader2 className="w-5 h-5 animate-spin" />
+                    Loading...
+                  </span>
+                ) : key === 'free' && subscriptionData && subscriptionData.plan === SubscriptionPlan.PARTNER_FREE ? (
+                  plan.cta
+                ) : key === 'pro' && subscriptionData && subscriptionData.plan === SubscriptionPlan.PARTNER_PRO ? (
+                  'Current Plan'
+                ) : key === 'business' && subscriptionData && subscriptionData.plan === SubscriptionPlan.PARTNER_BUSINESS ? (
+                  'Current Plan'
+                ) : (
+                  plan.cta
+                )}
               </button>
 
               <div className="space-y-3">
@@ -297,6 +429,18 @@ const GaragePlansPage = () => {
           </p>
         </motion.div>
       </div>
+
+      {/* Payment Modal */}
+      {showPayment && selectedPlan && (
+        <RazorpayCheckout
+          plan={selectedPlan}
+          billingInterval={billingInterval === 'monthly' ? BillingInterval.MONTHLY : BillingInterval.ANNUAL}
+          amount={getPlanAmount(selectedPlan)}
+          garageId={sessionStorage.getItem('garageIdForPayment') || undefined}
+          onSuccess={handlePaymentSuccess}
+          onClose={handlePaymentClose}
+        />
+      )}
     </div>
   );
 };
