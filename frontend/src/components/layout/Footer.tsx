@@ -1,93 +1,97 @@
 import { Link } from 'react-router-dom';
-import { ArrowUp } from 'lucide-react';
-import GarageMateLogoIcon from '@/components/shared/GarageMateLogoIcon';
+import { ArrowUp, Mail } from 'lucide-react';
+import GarageMateNavLogo from '@/components/shared/GarageMateNavLogo';
 
 const Footer = () => {
-  const scrollToTop = () => {
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  };
+  const scrollToTop = () => window.scrollTo({ top: 0, behavior: 'smooth' });
 
   return (
-    <footer className="bg-gradient-to-br from-dark-900 via-dark-800 to-dark-900 text-white py-16 border-t-2 border-orange-500/20">
-      {/* Background Pattern */}
-      <div className="absolute inset-0 opacity-5 pointer-events-none">
-        <div className="absolute inset-0 bg-[linear-gradient(to_right,#f97316_1px,transparent_1px),linear-gradient(to_bottom,#f97316_1px,transparent_1px)] bg-[size:4rem_4rem]" />
-      </div>
+    <footer style={{ background: '#020817' }} className="border-t border-white/8">
+      {/* Orange top accent */}
+      <div className="h-0.5 bg-orange-500 w-full" />
 
-      <div className="container-custom relative">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-12 mb-12">
-          <div>
+      <div className="container-custom py-14">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-10 mb-12">
+          {/* Brand */}
+          <div className="col-span-1 sm:col-span-2 lg:col-span-1">
             <div className="mb-4">
-              <GarageMateLogoIcon size={50} showText={true} />
+            <GarageMateNavLogo />
             </div>
-            <p className="text-dark-400 text-sm leading-relaxed">
-              Your trusted platform for roadside assistance and verified local garage services.
+            <p className="text-sm text-slate-500 leading-relaxed max-w-xs">
+              Your trusted platform for roadside assistance and verified local garage services across India.
             </p>
-            <div className="mt-6 flex gap-3">
-              <a
-                href="#"
-                className="w-10 h-10 rounded-full bg-dark-800 border-2 border-orange-500/30 flex items-center justify-center hover:bg-gradient-to-r hover:from-orange-500 hover:to-orange-600 hover:border-orange-400 transition-all hover:scale-110"
-                aria-label="Facebook"
-              >
-                <span className="text-sm font-bold">f</span>
-              </a>
-              <a
-                href="#"
-                className="w-10 h-10 rounded-full bg-dark-800 border-2 border-orange-500/30 flex items-center justify-center hover:bg-gradient-to-r hover:from-orange-500 hover:to-orange-600 hover:border-orange-400 transition-all hover:scale-110"
-                aria-label="Twitter"
-              >
-                <span className="text-sm font-bold">𝕏</span>
-              </a>
-              <a
-                href="#"
-                className="w-10 h-10 rounded-full bg-dark-800 border-2 border-orange-500/30 flex items-center justify-center hover:bg-gradient-to-r hover:from-orange-500 hover:to-orange-600 hover:border-orange-400 transition-all hover:scale-110"
-                aria-label="Instagram"
-              >
-                <span className="text-sm font-bold">in</span>
+            <div className="mt-5">
+              <a href="mailto:support@garagemate.in"
+                className="inline-flex items-center gap-2 text-xs text-slate-500 hover:text-orange-400 transition-colors">
+                <Mail className="w-3.5 h-3.5" /> support@garagemate.in
               </a>
             </div>
           </div>
 
+          {/* Quick links */}
           <div>
-            <h3 className="font-semibold mb-4 text-orange-400">Quick Links</h3>
-            <ul className="space-y-2 text-sm text-dark-400">
-              <li><a href="#services" className="hover:text-orange-400 transition-colors hover:translate-x-1 inline-block">→ Services</a></li>
-              <li><a href="#garages" className="hover:text-orange-400 transition-colors hover:translate-x-1 inline-block">→ Find Garages</a></li>
-              <li><a href="#how-it-works" className="hover:text-orange-400 transition-colors hover:translate-x-1 inline-block">→ How It Works</a></li>
-              <li><a href="#partner" className="hover:text-orange-400 transition-colors hover:translate-x-1 inline-block">→ Become a Partner</a></li>
+            <h4 className="text-xs font-semibold text-slate-300 uppercase tracking-wider mb-4">Quick Links</h4>
+            <ul className="space-y-2.5">
+              {[
+                { label: 'Services',         href: '#services' },
+                { label: 'Find Garages',     href: '#garages' },
+                { label: 'How It Works',     href: '#how-it-works' },
+                { label: 'Become a Partner', href: '#partner' },
+              ].map(({ label, href }) => (
+                <li key={label}>
+                  <a href={href} className="text-sm text-slate-500 hover:text-orange-400 transition-colors">
+                    {label}
+                  </a>
+                </li>
+              ))}
             </ul>
           </div>
 
+          {/* Account */}
           <div>
-            <h3 className="font-semibold mb-4 text-orange-400">Access</h3>
-            <ul className="space-y-2 text-sm text-dark-400">
-              <li><Link to="/auth/user/login" className="hover:text-orange-400 transition-colors hover:translate-x-1 inline-block">→ User Login</Link></li>
-              <li><Link to="/auth/garage/login" className="hover:text-orange-400 transition-colors hover:translate-x-1 inline-block">→ Garage Owner Login</Link></li>
-              <li><Link to="/auth/admin/login" className="hover:text-orange-400 transition-colors hover:translate-x-1 inline-block">→ Admin Login</Link></li>
+            <h4 className="text-xs font-semibold text-slate-300 uppercase tracking-wider mb-4">Account</h4>
+            <ul className="space-y-2.5">
+              {[
+                { label: 'User Login',         to: '/auth/user/login' },
+                { label: 'Create Account',     to: '/auth/user/register' },
+                { label: 'Garage Owner Login', to: '/auth/garage/login' },
+                { label: 'Register Garage',    to: '/auth/garage/register' },
+                { label: 'Pro Membership',     to: '/pro' },
+              ].map(({ label, to }) => (
+                <li key={label}>
+                  <Link to={to} className="text-sm text-slate-500 hover:text-orange-400 transition-colors">
+                    {label}
+                  </Link>
+                </li>
+              ))}
             </ul>
           </div>
 
+          {/* Legal */}
           <div>
-            <h3 className="font-semibold mb-4 text-orange-400">Legal</h3>
-            <ul className="space-y-2 text-sm text-dark-400">
-              <li><a href="#" className="hover:text-orange-400 transition-colors hover:translate-x-1 inline-block">→ Privacy Policy</a></li>
-              <li><a href="#" className="hover:text-orange-400 transition-colors hover:translate-x-1 inline-block">→ Terms of Service</a></li>
-              <li><a href="#" className="hover:text-orange-400 transition-colors hover:translate-x-1 inline-block">→ Contact Us</a></li>
+            <h4 className="text-xs font-semibold text-slate-300 uppercase tracking-wider mb-4">Legal</h4>
+            <ul className="space-y-2.5">
+              {['Privacy Policy', 'Terms of Service', 'Refund Policy', 'Contact Us'].map((item) => (
+                <li key={item}>
+                  <a href="#" className="text-sm text-slate-500 hover:text-orange-400 transition-colors">
+                    {item}
+                  </a>
+                </li>
+              ))}
             </ul>
           </div>
         </div>
 
-        <div className="pt-8 border-t-2 border-orange-500/20 flex flex-col md:flex-row items-center justify-between gap-4">
-          <p className="text-sm text-dark-400">
-            © 2024 GarageMate. All rights reserved.
+        {/* Bottom bar */}
+        <div className="pt-8 border-t border-white/6 flex flex-col sm:flex-row items-center justify-between gap-4">
+          <p className="text-xs text-slate-600">
+            © {new Date().getFullYear()} GarageMate. All rights reserved.
           </p>
-
-          <button
-            onClick={scrollToTop}
-            className="p-3 bg-gradient-to-r from-orange-500 to-orange-600 rounded-full hover:from-orange-600 hover:to-orange-700 transition-all hover:scale-110 shadow-lg hover:shadow-xl border-2 border-orange-400"
-            aria-label="Scroll to top"
-          >
-            <ArrowUp className="w-5 h-5" />
+          <button onClick={scrollToTop}
+            className="p-2.5 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors"
+            style={{ boxShadow: '0 2px 10px rgba(249,115,22,0.3)' }}
+            aria-label="Scroll to top">
+            <ArrowUp className="w-4 h-4" />
           </button>
         </div>
       </div>

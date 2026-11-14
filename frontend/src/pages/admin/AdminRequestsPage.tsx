@@ -1,22 +1,31 @@
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
-import { ArrowLeft, User, Wrench, Car, MapPin, Clock3 } from 'lucide-react';
+import { User, Wrench, Car, MapPin, Clock3, AlertCircle, TrendingUp, Users, Store, CheckCircle, DollarSign, FileText, CreditCard } from 'lucide-react';
 import axiosInstance from '@/lib/axios';
 import { API_ENDPOINTS } from '@/config/api';
+import { DashboardShell, type NavItem } from '@/components/layout/DashboardShell';
+import { StatusBadge } from '@/components/ui/Badge';
+import { EmptyState } from '@/components/ui/EmptyState';
 
 interface RequestRecord {
-  _id: string;
-  issueCategory: string;
-  issueDescription: string;
-  status: string;
-  urgency: string;
-  address: string;
-  bookingFee: number;
-  createdAt: string;
+  _id: string; issueCategory: string; issueDescription: string; status: string;
+  urgency: string; address: string; bookingFee: number; createdAt: string;
   userId?: { name?: string; email?: string };
   garageId?: { name?: string };
   mechanicId?: { name?: string };
 }
+
+const navItems: NavItem[] = [
+  { icon: TrendingUp,  label: 'Overview',      path: '/admin/dashboard' },
+  { icon: Users,       label: 'Users',          path: '/admin/dashboard' },
+  { icon: Store,       label: 'Garages',        path: '/admin/dashboard' },
+  { icon: CheckCircle, label: 'Verifications',  path: '/admin/dashboard' },
+  { icon: AlertCircle, label: 'Requests',       path: '/admin/requests' },
+  { icon: CreditCard,  label: 'Subscriptions',  path: '/admin/subscriptions' },
+  { icon: DollarSign,  label: 'Payments',       path: '/admin/dashboard' },
+  { icon: FileText,    label: 'Complaints',     path: '/admin/dashboard' },
+];
+
+const STATUS_FILTERS = ['ALL', 'PAYMENT_PENDING', 'SEARCHING_GARAGE', 'GARAGE_ACCEPTED', 'MECHANIC_ASSIGNED', 'SERVICE_IN_PROGRESS', 'PAID', 'CANCELLED'];
 
 const AdminRequestsPage = () => {
   const [requests, setRequests] = useState<RequestRecord[]>([]);
@@ -27,97 +36,114 @@ const AdminRequestsPage = () => {
   const loadRequests = async () => {
     setLoading(true);
     try {
-      const response = await axiosInstance.get(API_ENDPOINTS.ADMIN.REQUESTS, { params: statusFilter === 'ALL' ? {} : { status: statusFilter } });
-      setRequests(response.data?.data || []);
-      if ((response.data?.data || []).length) {
-        setSelectedRequest(response.data.data[0]);
-      }
-    } catch {
-      setRequests([]);
-    } finally {
-      setLoading(false);
-    }
+      const res = await axiosInstance.get(API_ENDPOINTS.ADMIN.REQUESTS, {
+        params: statusFilter === 'ALL' ? {} : { status: statusFilter },
+      });
+      const data = res.data?.data || [];
+      setRequests(data);
+      if (data.length > 0 && !selectedRequest) setSelectedRequest(data[0]);
+    } catch { setRequests([]); }
+    finally { setLoading(false); }
   };
 
-  useEffect(() => {
-    void loadRequests();
-  }, [statusFilter]);
+  useEffect(() => { void loadRequests(); }, [statusFilter]);
 
   return (
-    <div className="min-h-screen bg-dark-50 p-4 md:p-6 lg:p-8">
-      <div className="mx-auto max-w-7xl">
-        <div className="mb-6 flex items-center gap-3">
-          <Link to="/admin/dashboard" className="rounded-full bg-white p-2 shadow-sm">
-            <ArrowLeft className="h-5 w-5 text-dark-700" />
-          </Link>
-          <div>
-            <h1 className="text-2xl font-semibold text-dark-900">Request Monitoring</h1>
-            <p className="text-sm text-dark-600">Monitor active assistance requests across the platform.</p>
-          </div>
-        </div>
+    <DashboardShell navItems={navItems}>
+      <div className="mb-6">
+        <h1 className="text-xl font-semibold text-slate-900">Request Monitoring</h1>
+        <p className="text-sm text-slate-500 mt-0.5">Monitor all assistance requests across the platform.</p>
+      </div>
 
-        <div className="mb-6 flex flex-wrap gap-2">
-          {['ALL', 'PAYMENT_PENDING', 'SEARCHING_GARAGE', 'GARAGE_ACCEPTED', 'MECHANIC_ASSIGNED', 'SERVICE_IN_PROGRESS', 'PAID', 'CANCELLED'].map((status) => (
-            <button key={status} onClick={() => setStatusFilter(status)} className={`rounded-full px-3 py-2 text-sm ${statusFilter === status ? 'bg-primary-500 text-white' : 'bg-white text-dark-700 border border-dark-200'}`}>{status}</button>
-          ))}
-        </div>
+      {/* Status filter chips */}
+      <div className="flex flex-wrap gap-2 mb-6">
+        {STATUS_FILTERS.map((status) => (
+          <button key={status} onClick={() => setStatusFilter(status)}
+            className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
+              statusFilter === status ? 'bg-orange-500 text-white' : 'bg-white border border-slate-200 text-slate-600 hover:border-orange-300'
+            }`}>
+            {status.replace(/_/g, ' ')}
+          </button>
+        ))}
+      </div>
 
-        <div className="grid gap-8 lg:grid-cols-[1.1fr_0.9fr]">
-          <div className="space-y-4">
-            {loading ? <div className="rounded-2xl border border-dark-200 bg-white p-8 text-center text-sm text-dark-600">Loading requests...</div> : requests.map((request) => (
-              <button key={request._id} onClick={() => setSelectedRequest(request)} className="w-full rounded-2xl border border-dark-200 bg-white p-5 text-left shadow-sm">
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <p className="text-sm font-semibold text-dark-900">{request.issueCategory.replace(/_/g, ' ')}</p>
-                    <p className="mt-1 text-sm text-dark-600">{request.issueDescription}</p>
+      {loading ? (
+        <div className="text-center py-16 text-sm text-slate-400">Loading requests…</div>
+      ) : requests.length === 0 ? (
+        <EmptyState icon={<AlertCircle className="w-6 h-6" />} title="No requests found"
+          description={`No requests matching status: ${statusFilter}`} />
+      ) : (
+        <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
+          {/* Request list */}
+          <div className="lg:col-span-3 space-y-3">
+            {requests.map((req) => (
+              <div key={req._id}
+                onClick={() => setSelectedRequest(req)}
+                className={`card p-4 cursor-pointer transition-all ${selectedRequest?._id === req._id ? 'border-orange-300 shadow-brand' : 'hover:border-slate-300 hover:shadow-card-hover'}`}>
+                <div className="flex items-start justify-between gap-3 mb-2">
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold text-slate-900 truncate">{req.issueCategory.replace(/_/g, ' ')}</p>
+                    <p className="text-xs text-slate-500 mt-0.5 truncate">{req.issueDescription || 'No description'}</p>
                   </div>
-                  <span className="rounded-full bg-primary-50 px-3 py-1 text-xs font-medium text-primary-600">{request.status}</span>
+                  <StatusBadge status={req.status} className="flex-shrink-0" />
                 </div>
-                <div className="mt-4 flex flex-wrap gap-4 text-sm text-dark-500">
-                  <span className="flex items-center gap-1"><User className="h-4 w-4" />{request.userId?.name || 'User'}</span>
-                  <span className="flex items-center gap-1"><Wrench className="h-4 w-4" />{request.garageId?.name || 'Garage pending'}</span>
-                  <span className="flex items-center gap-1"><Clock3 className="h-4 w-4" />{new Date(request.createdAt).toLocaleString()}</span>
+                <div className="flex flex-wrap gap-3 text-xs text-slate-400 mt-2">
+                  <span className="flex items-center gap-1"><User className="w-3 h-3" />{req.userId?.name || 'User'}</span>
+                  <span className="flex items-center gap-1"><Wrench className="w-3 h-3" />{req.garageId?.name || 'Pending'}</span>
+                  <span className="flex items-center gap-1"><Clock3 className="w-3 h-3" />{new Date(req.createdAt).toLocaleDateString('en-IN')}</span>
                 </div>
-              </button>
+              </div>
             ))}
           </div>
 
-          <div className="rounded-2xl border border-dark-200 bg-white p-6 shadow-sm">
+          {/* Detail panel */}
+          <div className="lg:col-span-2 card p-5 self-start sticky top-20">
             {selectedRequest ? (
-              <div className="space-y-6">
+              <div className="space-y-5">
                 <div>
-                  <p className="text-sm font-semibold text-primary-600">Request Details</p>
-                  <h2 className="mt-1 text-xl font-semibold text-dark-900">{selectedRequest.issueCategory.replace(/_/g, ' ')}</h2>
-                  <p className="mt-2 text-sm text-dark-600">{selectedRequest.issueDescription}</p>
+                  <StatusBadge status={selectedRequest.status} />
+                  <h2 className="text-base font-semibold text-slate-900 mt-2">{selectedRequest.issueCategory.replace(/_/g, ' ')}</h2>
+                  {selectedRequest.issueDescription && (
+                    <p className="text-sm text-slate-500 mt-1">{selectedRequest.issueDescription}</p>
+                  )}
                 </div>
-                <div className="rounded-xl bg-dark-50 p-4 text-sm text-dark-600">
-                  <div className="flex items-center justify-between"><span>Status</span><span className="font-semibold text-dark-900">{selectedRequest.status}</span></div>
-                  <div className="mt-2 flex items-center justify-between"><span>Urgency</span><span className="font-semibold text-dark-900">{selectedRequest.urgency}</span></div>
-                  <div className="mt-2 flex items-center justify-between"><span>Booking Fee</span><span className="font-semibold text-dark-900">₹{selectedRequest.bookingFee}</span></div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  {[
+                    ['Urgency', selectedRequest.urgency],
+                    ['Booking Fee', `₹${selectedRequest.bookingFee}`],
+                  ].map(([label, value]) => (
+                    <div key={label} className="p-3 bg-slate-50 rounded-lg border border-slate-100">
+                      <p className="text-2xs font-semibold text-slate-400 uppercase tracking-wide mb-1">{label}</p>
+                      <p className="text-sm font-medium text-slate-800">{value}</p>
+                    </div>
+                  ))}
                 </div>
-                <div className="space-y-2 text-sm text-dark-600">
-                  <div className="flex items-center gap-2 font-semibold text-dark-900"><User className="h-4 w-4" />Customer</div>
-                  <p>{selectedRequest.userId?.name || 'User'}</p>
-                  <p>{selectedRequest.userId?.email || 'No email'}</p>
-                </div>
-                <div className="space-y-2 text-sm text-dark-600">
-                  <div className="flex items-center gap-2 font-semibold text-dark-900"><Wrench className="h-4 w-4" />Garage</div>
-                  <p>{selectedRequest.garageId?.name || 'Pending assignment'}</p>
-                </div>
-                <div className="space-y-2 text-sm text-dark-600">
-                  <div className="flex items-center gap-2 font-semibold text-dark-900"><Car className="h-4 w-4" />Mechanic</div>
-                  <p>{selectedRequest.mechanicId?.name || 'Pending assignment'}</p>
-                </div>
-                <div className="space-y-2 text-sm text-dark-600">
-                  <div className="flex items-center gap-2 font-semibold text-dark-900"><MapPin className="h-4 w-4" />Address</div>
-                  <p>{selectedRequest.address || 'Address unavailable'}</p>
+
+                <div className="space-y-3 text-sm">
+                  {[
+                    { icon: <User className="w-4 h-4 text-slate-400" />, label: 'Customer', value: `${selectedRequest.userId?.name || '—'}\n${selectedRequest.userId?.email || ''}` },
+                    { icon: <Wrench className="w-4 h-4 text-slate-400" />, label: 'Garage', value: selectedRequest.garageId?.name || 'Pending assignment' },
+                    { icon: <Car className="w-4 h-4 text-slate-400" />, label: 'Mechanic', value: selectedRequest.mechanicId?.name || 'Pending assignment' },
+                    { icon: <MapPin className="w-4 h-4 text-slate-400" />, label: 'Location', value: selectedRequest.address || 'Address unavailable' },
+                  ].map(({ icon, label, value }) => (
+                    <div key={label} className="flex items-start gap-3">
+                      <div className="mt-0.5 flex-shrink-0">{icon}</div>
+                      <div>
+                        <p className="text-xs font-semibold text-slate-500 mb-0.5">{label}</p>
+                        <p className="text-slate-700 whitespace-pre-line">{value}</p>
+                      </div>
+                    </div>
+                  ))}
                 </div>
               </div>
-            ) : <div className="text-sm text-dark-600">Select a request to inspect it.</div>}
+            ) : (
+              <EmptyState title="Select a request" description="Click a request from the list to view its details." />
+            )}
           </div>
         </div>
-      </div>
-    </div>
+      )}
+    </DashboardShell>
   );
 };
 

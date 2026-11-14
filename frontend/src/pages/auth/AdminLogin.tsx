@@ -1,8 +1,9 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Mail, Lock, Eye, EyeOff, Shield, Loader2 } from 'lucide-react';
+import { Mail, Lock, Eye, EyeOff, Shield, Loader2, AlertCircle } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
+import GarageMateLogoIcon from '@/components/shared/GarageMateLogoIcon';
 
 const AdminLogin = () => {
   const navigate = useNavigate();
@@ -16,134 +17,109 @@ const AdminLogin = () => {
     e.preventDefault();
     setLoading(true);
     setError('');
-
     try {
       await adminLogin(formData.email, formData.password);
       navigate('/redirect');
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unable to sign in');
+    } catch (err: unknown) {
+      const msg = (err as { response?: { data?: { message?: string } }; message?: string })?.response?.data?.message ?? (err as Error)?.message ?? 'Unable to sign in';
+      setError(msg);
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-dark-900 via-dark-800 to-dark-900">
-      <div className="absolute inset-0 bg-[linear-gradient(to_right,#f97316_1px,transparent_1px),linear-gradient(to_bottom,#f97316_1px,transparent_1px)] bg-[size:4rem_4rem] opacity-5" />
-      
+    <div className="min-h-screen bg-slate-950 flex items-center justify-center p-4">
+      {/* Grid background */}
+      <div
+        className="absolute inset-0 opacity-[0.04] pointer-events-none"
+        style={{
+          backgroundImage: 'linear-gradient(to right,#f97316 1px,transparent 1px),linear-gradient(to bottom,#f97316 1px,transparent 1px)',
+          backgroundSize: '48px 48px',
+        }}
+      />
+
       <motion.div
-        initial={{ opacity: 0, y: 30 }}
+        initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.6 }}
-        className="relative z-10 w-full max-w-md p-8 mx-4"
+        transition={{ duration: 0.4 }}
+        className="relative z-10 w-full max-w-sm"
       >
-        <div className="bg-dark-800/50 backdrop-blur-xl border border-dark-700 rounded-2xl p-8 shadow-2xl">
-          <div className="flex justify-center mb-8">
-            <div className="w-16 h-16 bg-dark-700 rounded-xl flex items-center justify-center">
-              <Shield className="w-8 h-8 text-primary-500" />
-            </div>
+        {/* Card */}
+        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-8 shadow-modal">
+          {/* Logo */}
+          <div className="flex justify-center mb-6">
+            <GarageMateLogoIcon size={42} showText={true} />
           </div>
 
-          <h2 className="text-3xl font-display font-bold text-white text-center mb-2">
-            Admin Portal
-          </h2>
-          <p className="text-dark-300 text-center mb-8">
-            Secure access for administrators only
-          </p>
+          {/* Icon + heading */}
+          <div className="text-center mb-8">
+            <div className="w-12 h-12 bg-slate-800 border border-slate-700 rounded-xl flex items-center justify-center mx-auto mb-4">
+              <Shield className="w-6 h-6 text-orange-500" />
+            </div>
+            <h1 className="text-xl font-display font-bold text-white">Admin Portal</h1>
+            <p className="text-sm text-slate-500 mt-1">Restricted access — authorised personnel only</p>
+          </div>
 
-          <form onSubmit={handleSubmit} className="space-y-6">
-            <div>
-              <label className="block text-sm font-medium text-dark-300 mb-2">
-                Email Address
-              </label>
+          <form onSubmit={handleSubmit} className="space-y-5">
+            {error && (
+              <div className="flex items-start gap-3 p-3 bg-red-900/30 border border-red-800/50 rounded-lg">
+                <AlertCircle className="w-4 h-4 text-red-400 flex-shrink-0 mt-0.5" />
+                <p className="text-sm text-red-300">{error}</p>
+              </div>
+            )}
+
+            <div className="space-y-1.5">
+              <label htmlFor="email" className="block text-sm font-medium text-slate-300">Email address</label>
               <div className="relative">
-                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-dark-400" />
-                <input
-                  type="email"
-                  value={formData.email}
+                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500 pointer-events-none" />
+                <input id="email" type="email" required value={formData.email}
                   onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                  className="w-full pl-10 pr-4 py-3 bg-dark-700 border-2 border-dark-600 text-white rounded-lg focus:border-primary-500 focus:outline-none transition-colors"
-                  placeholder="admin@garagemate.com"
-                  required
-                />
+                  className="w-full pl-10 pr-4 py-2.5 bg-slate-800 border border-slate-700 text-white placeholder:text-slate-500 rounded-lg text-sm focus:outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-500/15 transition-all"
+                  placeholder="admin@garagemate.com" autoComplete="email" />
               </div>
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-dark-300 mb-2">
-                Password
-              </label>
+            <div className="space-y-1.5">
+              <label htmlFor="password" className="block text-sm font-medium text-slate-300">Password</label>
               <div className="relative">
-                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-dark-400" />
-                <input
-                  type={showPassword ? 'text' : 'password'}
-                  value={formData.password}
+                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500 pointer-events-none" />
+                <input id="password" type={showPassword ? 'text' : 'password'} required value={formData.password}
                   onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                  className="w-full pl-10 pr-12 py-3 bg-dark-700 border-2 border-dark-600 text-white rounded-lg focus:border-primary-500 focus:outline-none transition-colors"
-                  placeholder="••••••••"
-                  required
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-dark-400 hover:text-dark-300"
-                >
-                  {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                  className="w-full pl-10 pr-10 py-2.5 bg-slate-800 border border-slate-700 text-white placeholder:text-slate-500 rounded-lg text-sm focus:outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-500/15 transition-all"
+                  placeholder="••••••••" autoComplete="current-password" />
+                <button type="button" onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300 transition-colors"
+                  aria-label={showPassword ? 'Hide password' : 'Show password'}>
+                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                 </button>
               </div>
             </div>
 
-            {error && <p className="text-sm text-red-600">{error}</p>}
-
-            {/* Demo Credentials */}
-            <div className="bg-amber-900/20 border border-amber-700/30 rounded-lg p-4">
-              <div className="flex items-start gap-3">
-                <div className="flex-shrink-0 mt-0.5">
-                  <svg className="w-5 h-5 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                </div>
-                <div className="flex-1">
-                  <p className="text-sm font-semibold text-amber-300 mb-2">Demo Account Available</p>
-                  <div className="space-y-1 text-sm text-amber-200">
-                    <p><span className="font-medium">Email:</span> demo.admin@garagemate.com</p>
-                    <p><span className="font-medium">Password:</span> Demo@12345</p>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setFormData({ email: 'demo.admin@garagemate.com', password: 'Demo@12345' })}
-                    className="mt-2 text-xs font-medium text-amber-300 hover:text-amber-100 underline"
-                  >
-                    Use Demo Credentials
-                  </button>
-                </div>
-              </div>
+            {/* Demo credentials */}
+            <div className="p-3 bg-amber-900/20 border border-amber-700/40 rounded-lg">
+              <p className="text-xs font-semibold text-amber-300 mb-1.5">Demo Admin Account</p>
+              <p className="text-xs text-amber-200/80"><span className="font-medium">Email:</span> demo.admin@garagemate.com</p>
+              <p className="text-xs text-amber-200/80"><span className="font-medium">Password:</span> Demo@12345</p>
+              <button type="button"
+                onClick={() => setFormData({ email: 'demo.admin@garagemate.com', password: 'Demo@12345' })}
+                className="mt-2 text-xs font-semibold text-amber-400 hover:text-amber-200 underline">
+                Fill credentials →
+              </button>
             </div>
 
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full py-3 bg-primary-500 text-white rounded-lg font-semibold hover:bg-primary-600 transition-colors disabled:opacity-60"
-            >
-              {loading ? (
-                <span className="inline-flex items-center justify-center gap-2"><Loader2 className="w-4 h-4 animate-spin" /> Signing in...</span>
-              ) : (
-                'Sign In as Admin'
-              )}
+            <button type="submit" disabled={loading}
+              className="w-full py-2.5 bg-orange-500 text-white text-sm font-semibold rounded-lg hover:bg-orange-600 active:bg-orange-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2">
+              {loading ? <><Loader2 className="w-4 h-4 animate-spin" /> Signing in…</> : 'Sign In as Admin'}
             </button>
-
-            <Link
-              to="/get-started"
-              className="block text-center text-sm text-dark-400 hover:text-dark-300 transition-colors"
-            >
-              Back to role selection
-            </Link>
           </form>
-        </div>
 
-        <p className="text-center text-xs text-dark-500 mt-6">
-          This area is restricted to authorized administrators only
-        </p>
+          <div className="mt-6 text-center">
+            <Link to="/get-started" className="text-xs text-slate-500 hover:text-slate-400 transition-colors">
+              ← Back to role selection
+            </Link>
+          </div>
+        </div>
       </motion.div>
     </div>
   );

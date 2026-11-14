@@ -1,90 +1,63 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { motion } from 'framer-motion';
 import {
-  AlertCircle,
-  Car,
-  MapPin,
-  Clock,
-  Star,
-  Bell,
-  User,
-  LogOut,
-  Menu,
-  X,
-  Plus,
-  Pencil,
-  Trash2,
-  Loader2,
+  AlertCircle, Car, MapPin, Clock, Star, Bell, Plus,
+  Pencil, Trash2, Loader2, Navigation, Zap,
 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import axiosInstance from '@/lib/axios';
 import { API_ENDPOINTS } from '@/config/api';
+import { DashboardShell, type NavItem } from '@/components/layout/DashboardShell';
+import { StatusBadge } from '@/components/ui/Badge';
+import { EmptyState } from '@/components/ui/EmptyState';
+import { Modal } from '@/components/ui/Modal';
 import UserSubscriptionCard from '@/components/subscription/UserSubscriptionCard';
 import { getMySubscription } from '@/services/subscriptionService';
 import type { MySubscriptionResponse } from '@/types/subscription';
 
 interface VehicleRecord {
-  _id: string;
-  vehicleType: string;
-  brand: string;
-  vehicleModel: string;
-  registrationNumber: string;
-  fuelType: string;
-  manufacturingYear: number;
-  notes?: string;
+  _id: string; vehicleType: string; brand: string; vehicleModel: string;
+  registrationNumber: string; fuelType: string; manufacturingYear: number; notes?: string;
 }
 
 interface RequestRecord {
-  _id: string;
-  issueCategory: string;
-  status: string;
-  createdAt: string;
+  _id: string; issueCategory: string; status: string; createdAt: string;
   garageId?: { name?: string };
 }
 
 interface DashboardStats {
-  nearbyGarages: number;
-  activeRequests: number;
-  completedRequests: number;
-  vehicles: number;
+  nearbyGarages: number; activeRequests: number; completedRequests: number; vehicles: number;
 }
 
 interface UserLocation {
-  latitude: number;
-  longitude: number;
-  locality?: string;
-  city?: string;
-  address?: string;
+  latitude: number; longitude: number; locality?: string; city?: string; address?: string;
 }
 
 interface VehicleFormState {
-  vehicleType: string;
-  brand: string;
-  vehicleModel: string;
-  registrationNumber: string;
-  fuelType: string;
-  manufacturingYear: string;
-  notes: string;
+  vehicleType: string; brand: string; vehicleModel: string; registrationNumber: string;
+  fuelType: string; manufacturingYear: string; notes: string;
 }
 
 const defaultVehicleForm = (): VehicleFormState => ({
-  vehicleType: 'CAR',
-  brand: '',
-  vehicleModel: '',
-  registrationNumber: '',
-  fuelType: '',
-  manufacturingYear: new Date().getFullYear().toString(),
-  notes: '',
+  vehicleType: 'CAR', brand: '', vehicleModel: '', registrationNumber: '',
+  fuelType: '', manufacturingYear: new Date().getFullYear().toString(), notes: '',
 });
 
 const vehicleTypeOptions = ['BIKE', 'SCOOTER', 'CAR', 'SUV', 'VAN', 'OTHER'];
 const fuelTypeOptions = ['Petrol', 'Diesel', 'CNG', 'Electric', 'Hybrid'];
 
+const navItems: NavItem[] = [
+  { icon: AlertCircle, label: 'Dashboard',     path: '/user/dashboard' },
+  { icon: MapPin,      label: 'Find Garages',  path: '/user/nearby-garages' },
+  { icon: Zap,         label: 'Emergency',     path: '/user/emergency' },
+  { icon: Clock,       label: 'My Requests',   path: '/user/requests' },
+  { icon: Car,         label: 'My Vehicles',   path: '/user/vehicles' },
+  { icon: Star,        label: 'My Reviews',    path: '/user/reviews' },
+];
+
 const UserDashboard = () => {
   const navigate = useNavigate();
-  const { user, logout } = useAuth();
-  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const { user } = useAuth();
   const [vehicles, setVehicles] = useState<VehicleRecord[]>([]);
   const [loadingVehicles, setLoadingVehicles] = useState(false);
   const [submittingVehicle, setSubmittingVehicle] = useState(false);
@@ -92,914 +65,449 @@ const UserDashboard = () => {
   const [isVehicleModalOpen, setIsVehicleModalOpen] = useState(false);
   const [editingVehicle, setEditingVehicle] = useState<VehicleRecord | null>(null);
   const [vehicleForm, setVehicleForm] = useState<VehicleFormState>(defaultVehicleForm());
-  
-  // Location state
   const [userLocation, setUserLocation] = useState<UserLocation | null>(null);
   const [requestingLocation, setRequestingLocation] = useState(false);
   const [locationError, setLocationError] = useState<string | null>(null);
-  
-  // Dashboard stats
-  const [stats, setStats] = useState<DashboardStats>({
-    nearbyGarages: 0,
-    activeRequests: 0,
-    completedRequests: 0,
-    vehicles: 0,
-  });
-  
-  // Nearby garages
-  const [nearbyGarages, setNearbyGarages] = useState<Array<{
-    _id: string;
-    name: string;
-    address: string;
-    distance?: number;
-    rating?: number;
-    reviewCount?: number;
-    isAvailable?: boolean;
-    visitingCharge?: number;
-    services?: string[];
-  }>>([]);
+  const [stats, setStats] = useState<DashboardStats>({ nearbyGarages: 0, activeRequests: 0, completedRequests: 0, vehicles: 0 });
+  const [nearbyGarages, setNearbyGarages] = useState<Array<{ _id: string; name: string; address: string; distance?: number; rating?: number; reviewCount?: number; isAvailable?: boolean; }>>([]);
   const [loadingNearbyGarages, setLoadingNearbyGarages] = useState(false);
-
-  const navItems = [
-    { icon: AlertCircle, label: 'Dashboard', active: true, path: '/user/dashboard' },
-    { icon: MapPin, label: 'Find Garages', path: '/user/nearby-garages' },
-    { icon: AlertCircle, label: 'Emergency Help', path: '/user/emergency' },
-    { icon: Clock, label: 'My Requests', path: '/user/requests' },
-    { icon: Car, label: 'My Vehicles', path: '/user/vehicles' },
-    { icon: Star, label: 'Reviews', path: '/user/reviews' },
-  ];
-
   const [requests, setRequests] = useState<RequestRecord[]>([]);
   const [loadingRequests, setLoadingRequests] = useState(false);
-  
-  // Subscription state
   const [subscriptionData, setSubscriptionData] = useState<MySubscriptionResponse | null>(null);
   const [loadingSubscription, setLoadingSubscription] = useState(false);
   const [subscriptionError, setSubscriptionError] = useState<string | null>(null);
-  
-  // Load saved location from sessionStorage
+
   useEffect(() => {
-    const savedLocation = sessionStorage.getItem('userLocation');
-    if (savedLocation) {
-      try {
-        setUserLocation(JSON.parse(savedLocation));
-      } catch {
-        // Invalid saved location
-      }
+    const saved = sessionStorage.getItem('userLocation');
+    if (saved) {
+      try { setUserLocation(JSON.parse(saved)); } catch { /* ignore */ }
     }
   }, []);
-  
+
   const handleUseCurrentLocation = () => {
-    if (!navigator.geolocation) {
-      setLocationError('Geolocation is not supported by your browser');
-      return;
-    }
-    
+    if (!navigator.geolocation) { setLocationError('Geolocation not supported'); return; }
     setRequestingLocation(true);
     setLocationError(null);
-    
     navigator.geolocation.getCurrentPosition(
-      async (position) => {
-        const { latitude, longitude } = position.coords;
-        
+      async (pos) => {
+        const { latitude, longitude } = pos.coords;
         try {
-          // Call reverse geocoding API
-          const response = await axiosInstance.get(API_ENDPOINTS.GARAGES.REVERSE_GEOCODE, {
-            params: { latitude, longitude },
-          });
-          
-          const locationData: UserLocation = {
-            latitude,
-            longitude,
-            address: response.data?.data?.displayName || response.data?.data?.address,
-            locality: response.data?.data?.locality,
-            city: response.data?.data?.city,
-          };
-          
-          setUserLocation(locationData);
-          sessionStorage.setItem('userLocation', JSON.stringify(locationData));
-          
-          // Fetch nearby garages count
+          const res = await axiosInstance.get(API_ENDPOINTS.GARAGES.REVERSE_GEOCODE, { params: { latitude, longitude } });
+          const loc: UserLocation = { latitude, longitude, address: res.data?.data?.displayName || res.data?.data?.address, locality: res.data?.data?.locality, city: res.data?.data?.city };
+          setUserLocation(loc);
+          sessionStorage.setItem('userLocation', JSON.stringify(loc));
           await fetchNearbyGaragesCount(latitude, longitude);
-        } catch (error) {
-          // Still save location even if reverse geocoding fails
-          const locationData: UserLocation = {
-            latitude,
-            longitude,
-            address: `${latitude.toFixed(4)}, ${longitude.toFixed(4)}`,
-          };
-          setUserLocation(locationData);
-          sessionStorage.setItem('userLocation', JSON.stringify(locationData));
-        } finally {
-          setRequestingLocation(false);
-        }
+        } catch {
+          const loc: UserLocation = { latitude, longitude, address: `${latitude.toFixed(4)}, ${longitude.toFixed(4)}` };
+          setUserLocation(loc);
+          sessionStorage.setItem('userLocation', JSON.stringify(loc));
+        } finally { setRequestingLocation(false); }
       },
-      (error) => {
+      (err) => {
         setRequestingLocation(false);
-        if (error.code === 1) {
-          setLocationError('Location permission denied. You can enter your location manually.');
-        } else if (error.code === 2) {
-          setLocationError('Location is currently unavailable.');
-        } else if (error.code === 3) {
-          setLocationError('Location request timed out.');
-        } else {
-          setLocationError('Unable to detect your location.');
-        }
+        setLocationError(err.code === 1 ? 'Location permission denied.' : err.code === 2 ? 'Location unavailable.' : 'Location request timed out.');
       },
-      {
-        enableHighAccuracy: true,
-        timeout: 10000,
-        maximumAge: 300000, // 5 minutes
-      }
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 300000 }
     );
   };
-  
+
   const fetchNearbyGaragesCount = async (lat: number, lng: number) => {
+    setLoadingNearbyGarages(true);
     try {
-      setLoadingNearbyGarages(true);
-      const response = await axiosInstance.get(API_ENDPOINTS.GARAGES.NEARBY, {
-        params: {
-          latitude: lat,
-          longitude: lng,
-          radius: 10, // 10 km default
-        },
-      });
-      const garages = response.data?.data || [];
-      setStats(prev => ({ ...prev, nearbyGarages: garages.length }));
-      setNearbyGarages(garages.slice(0, 3)); // Top 3 nearest
-    } catch {
-      setNearbyGarages([]);
-    } finally {
-      setLoadingNearbyGarages(false);
-    }
+      const res = await axiosInstance.get(API_ENDPOINTS.GARAGES.NEARBY, { params: { latitude: lat, longitude: lng, radius: 10 } });
+      const garages = res.data?.data || [];
+      setStats((p) => ({ ...p, nearbyGarages: garages.length }));
+      setNearbyGarages(garages.slice(0, 3));
+    } catch { setNearbyGarages([]); } finally { setLoadingNearbyGarages(false); }
   };
 
   const fetchVehicles = async () => {
-    if (!user) {
-      setVehicles([]);
-      return;
-    }
-
+    if (!user) return;
     setLoadingVehicles(true);
-    setErrorMessage(null);
-
     try {
-      const response = await axiosInstance.get(API_ENDPOINTS.VEHICLES.LIST);
-      setVehicles(response.data?.data || []);
-    } catch (error) {
-      const message = error instanceof Error ? error.message : 'Unable to load vehicles';
-      setErrorMessage(message);
-    } finally {
-      setLoadingVehicles(false);
-    }
+      const res = await axiosInstance.get(API_ENDPOINTS.VEHICLES.LIST);
+      setVehicles(res.data?.data || []);
+    } catch (err) { setErrorMessage(err instanceof Error ? err.message : 'Unable to load vehicles'); }
+    finally { setLoadingVehicles(false); }
   };
 
   const fetchRequests = async () => {
-    if (!user) {
-      return;
-    }
-
+    if (!user) return;
     setLoadingRequests(true);
     try {
-      const response = await axiosInstance.get(API_ENDPOINTS.REQUESTS.MY);
-      const allRequests = response.data?.data || [];
-      setRequests(allRequests.slice(0, 3));
-      
-      // Update stats
-      const active = allRequests.filter((r: RequestRecord) => 
-        !['CANCELLED', 'CLOSED', 'PAID', 'SERVICE_COMPLETED'].includes(r.status)
-      ).length;
-      const completed = allRequests.filter((r: RequestRecord) => 
-        ['CLOSED', 'PAID', 'SERVICE_COMPLETED'].includes(r.status)
-      ).length;
-      
-      setStats(prev => ({ ...prev, activeRequests: active, completedRequests: completed }));
-    } catch {
-      setRequests([]);
-    } finally {
-      setLoadingRequests(false);
-    }
+      const res = await axiosInstance.get(API_ENDPOINTS.REQUESTS.MY);
+      const all = res.data?.data || [];
+      setRequests(all.slice(0, 4));
+      const active = all.filter((r: RequestRecord) => !['CANCELLED', 'CLOSED', 'PAID', 'SERVICE_COMPLETED'].includes(r.status)).length;
+      const completed = all.filter((r: RequestRecord) => ['CLOSED', 'PAID', 'SERVICE_COMPLETED'].includes(r.status)).length;
+      setStats((p) => ({ ...p, activeRequests: active, completedRequests: completed }));
+    } catch { setRequests([]); } finally { setLoadingRequests(false); }
   };
 
   const fetchSubscription = async () => {
-    if (!user) {
-      return;
-    }
-
+    if (!user) return;
     setLoadingSubscription(true);
     setSubscriptionError(null);
-    try {
-      const data = await getMySubscription();
-      setSubscriptionData(data);
-    } catch (error) {
-      const message = error instanceof Error ? error.message : 'Unable to load subscription';
-      setSubscriptionError(message);
-    } finally {
-      setLoadingSubscription(false);
-    }
+    try { const data = await getMySubscription(); setSubscriptionData(data); }
+    catch (err) { setSubscriptionError(err instanceof Error ? err.message : 'Unable to load subscription'); }
+    finally { setLoadingSubscription(false); }
   };
 
   useEffect(() => {
     void fetchVehicles();
     void fetchRequests();
     void fetchSubscription();
-    
-    // Fetch nearby garages if location is already saved
-    if (userLocation) {
-      void fetchNearbyGaragesCount(userLocation.latitude, userLocation.longitude);
-    }
+    if (userLocation) void fetchNearbyGaragesCount(userLocation.latitude, userLocation.longitude);
   }, [user?._id]);
-  
-  useEffect(() => {
-    setStats(prev => ({ ...prev, vehicles: vehicles.length }));
-  }, [vehicles.length]);
 
-  const openCreateModal = () => {
-    setEditingVehicle(null);
-    setVehicleForm(defaultVehicleForm());
-    setErrorMessage(null);
-    setIsVehicleModalOpen(true);
-  };
+  useEffect(() => { setStats((p) => ({ ...p, vehicles: vehicles.length })); }, [vehicles.length]);
 
-  const openEditModal = (vehicle: VehicleRecord) => {
-    setEditingVehicle(vehicle);
-    setVehicleForm({
-      vehicleType: vehicle.vehicleType,
-      brand: vehicle.brand,
-      vehicleModel: vehicle.vehicleModel,
-      registrationNumber: vehicle.registrationNumber,
-      fuelType: vehicle.fuelType,
-      manufacturingYear: String(vehicle.manufacturingYear),
-      notes: vehicle.notes || '',
-    });
-    setErrorMessage(null);
-    setIsVehicleModalOpen(true);
-  };
+  const openCreateModal = () => { setEditingVehicle(null); setVehicleForm(defaultVehicleForm()); setErrorMessage(null); setIsVehicleModalOpen(true); };
+  const openEditModal = (v: VehicleRecord) => { setEditingVehicle(v); setVehicleForm({ vehicleType: v.vehicleType, brand: v.brand, vehicleModel: v.vehicleModel, registrationNumber: v.registrationNumber, fuelType: v.fuelType, manufacturingYear: String(v.manufacturingYear), notes: v.notes || '' }); setErrorMessage(null); setIsVehicleModalOpen(true); };
+  const closeVehicleModal = () => { setIsVehicleModalOpen(false); setEditingVehicle(null); setVehicleForm(defaultVehicleForm()); setErrorMessage(null); };
 
-  const closeVehicleModal = () => {
-    setIsVehicleModalOpen(false);
-    setEditingVehicle(null);
-    setVehicleForm(defaultVehicleForm());
-    setErrorMessage(null);
-  };
-
-  const handleVehicleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
+  const handleVehicleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
     setSubmittingVehicle(true);
     setErrorMessage(null);
-
     try {
-      const payload = {
-        ...vehicleForm,
-        manufacturingYear: Number(vehicleForm.manufacturingYear),
-      };
-
-      let response: { data: { data: VehicleRecord } };
+      const payload = { ...vehicleForm, manufacturingYear: Number(vehicleForm.manufacturingYear) };
       if (editingVehicle) {
-        response = await axiosInstance.patch(API_ENDPOINTS.VEHICLES.UPDATE(editingVehicle._id), payload);
-        setVehicles((prev) => prev.map((vehicle) => (vehicle._id === editingVehicle._id ? response.data.data : vehicle)));
+        const res = await axiosInstance.patch(API_ENDPOINTS.VEHICLES.UPDATE(editingVehicle._id), payload);
+        setVehicles((p) => p.map((v) => v._id === editingVehicle._id ? res.data.data : v));
       } else {
-        response = await axiosInstance.post(API_ENDPOINTS.VEHICLES.CREATE, payload);
-        setVehicles((prev) => [response.data.data, ...prev]);
+        const res = await axiosInstance.post(API_ENDPOINTS.VEHICLES.CREATE, payload);
+        setVehicles((p) => [res.data.data, ...p]);
       }
-
       closeVehicleModal();
-    } catch (error) {
-      const message = error instanceof Error ? error.message : 'Unable to save vehicle';
-      setErrorMessage(message);
-    } finally {
-      setSubmittingVehicle(false);
-    }
+    } catch (err) { setErrorMessage(err instanceof Error ? err.message : 'Unable to save vehicle'); }
+    finally { setSubmittingVehicle(false); }
   };
 
   const handleDeleteVehicle = async (vehicleId: string) => {
-    const confirmed = window.confirm('Delete this vehicle from your profile?');
-    if (!confirmed) {
-      return;
-    }
-
+    if (!window.confirm('Remove this vehicle from your profile?')) return;
     try {
       await axiosInstance.delete(API_ENDPOINTS.VEHICLES.DELETE(vehicleId));
-      setVehicles((prev) => prev.filter((vehicle) => vehicle._id !== vehicleId));
-    } catch (error) {
-      const message = error instanceof Error ? error.message : 'Unable to delete vehicle';
-      setErrorMessage(message);
-    }
+      setVehicles((p) => p.filter((v) => v._id !== vehicleId));
+    } catch (err) { setErrorMessage(err instanceof Error ? err.message : 'Unable to delete vehicle'); }
   };
 
+  const headerActions = (
+    <button className="relative p-2 rounded-lg transition-colors" style={{ color: '#94a3b8' }}
+      onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.08)'; (e.currentTarget as HTMLElement).style.color = '#fff'; }}
+      onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = 'transparent'; (e.currentTarget as HTMLElement).style.color = '#94a3b8'; }}>
+      <Bell className="w-5 h-5" />
+      <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 bg-orange-500 rounded-full" />
+    </button>
+  );
+
   return (
-    <div className="min-h-screen bg-dark-50">
-      {sidebarOpen && (
-        <div className="fixed inset-0 bg-black/50 z-40 lg:hidden" onClick={() => setSidebarOpen(false)} />
-      )}
+    <DashboardShell navItems={navItems} headerActions={headerActions}>
+      {/* Welcome */}
+      <div className="mb-6">
+        <h1 className="text-xl font-bold text-white">
+          Good day, {user?.name?.split(' ')[0] ?? 'there'} 👋
+        </h1>
+        <p className="text-sm text-slate-500 mt-0.5">Here's what's happening with your vehicles.</p>
+      </div>
 
-      <aside className={`fixed top-0 left-0 bottom-0 w-64 bg-white border-r border-dark-200 z-50 transform transition-transform lg:translate-x-0 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
-        <div className="p-6 border-b border-dark-200 flex items-center justify-between">
-          <Link to="/" className="flex items-center gap-2">
-            <div className="w-10 h-10 bg-primary-500 rounded-lg flex items-center justify-center">
-              <span className="text-xl font-bold text-white">G</span>
-            </div>
-            <span className="text-xl font-display font-bold">GarageMate</span>
-          </Link>
-          <button onClick={() => setSidebarOpen(false)} className="lg:hidden">
-            <X size={24} />
-          </button>
+      {/* Emergency CTA */}
+      <div
+        className="mb-6 rounded-xl p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4"
+        style={{ background: 'linear-gradient(135deg,#b91c1c,#dc2626)', boxShadow: '0 4px 20px rgba(220,38,38,0.35)' }}
+      >
+        <div>
+          <p className="text-xs font-bold text-red-200 uppercase tracking-widest mb-1">Need immediate help?</p>
+          <h2 className="text-lg font-bold text-white">Get emergency roadside assistance</h2>
         </div>
+        <Link
+          to={vehicles.length === 0 ? '#' : '/user/emergency'}
+          onClick={(e) => { if (vehicles.length === 0) { e.preventDefault(); openCreateModal(); } }}
+          className="flex-shrink-0 inline-flex items-center gap-2 px-5 py-2.5 bg-white text-red-600 text-sm font-bold rounded-lg hover:bg-red-50 transition-colors"
+          style={{ boxShadow: '0 2px 10px rgba(0,0,0,0.3)' }}
+        >
+          <Zap className="w-4 h-4" />
+          {vehicles.length === 0 ? 'Add Vehicle First' : 'Get Help Now'}
+        </Link>
+      </div>
 
-        <nav className="p-4 space-y-2">
-          {navItems.map((item) => (
-            <button
-              key={item.label}
-              type="button"
-              onClick={() => {
-                if (item.path) {
-                  navigate(item.path);
-                }
-                setSidebarOpen(false);
-              }}
-              className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
-                item.active ? 'bg-primary-50 text-primary-600' : 'text-dark-600 hover:bg-dark-50'
-              }`}
-            >
-              <item.icon className="w-5 h-5" />
-              <span className="font-medium">{item.label}</span>
-            </button>
-          ))}
-        </nav>
-
-        <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-dark-200">
-          <div className="flex items-center gap-3 p-3 bg-dark-50 rounded-lg mb-2">
-            <div className="w-10 h-10 bg-primary-100 rounded-full flex items-center justify-center">
-              <User className="w-5 h-5 text-primary-600" />
+      {/* Stats row */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+        {[
+          { label: 'Nearby Garages', value: stats.nearbyGarages, icon: <MapPin className="w-5 h-5 text-blue-400" />, iconBg: 'rgba(59,130,246,0.15)', note: !userLocation ? 'Enable location' : undefined },
+          { label: 'Active Requests', value: stats.activeRequests, icon: <Clock className="w-5 h-5 text-orange-400" />, iconBg: 'rgba(249,115,22,0.15)' },
+          { label: 'Completed', value: stats.completedRequests, icon: <Star className="w-5 h-5 text-green-400" />, iconBg: 'rgba(34,197,94,0.15)' },
+          { label: 'My Vehicles', value: stats.vehicles, icon: <Car className="w-5 h-5 text-orange-400" />, iconBg: 'rgba(249,115,22,0.15)' },
+        ].map(({ label, value, icon, iconBg, note }) => (
+          <div key={label} className="dark-stat-card">
+            <div>
+              <p className="text-2xl font-black text-white">{value}</p>
+              <p className="text-xs text-slate-400 mt-0.5">{label}</p>
+              {note && <p className="text-2xs text-slate-600 mt-0.5">{note}</p>}
             </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-dark-900 truncate">{user?.name || 'User'}</p>
-              <p className="text-xs text-dark-500 truncate">{user?.email || 'No email'}</p>
+            <div className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: iconBg }}>
+              {icon}
             </div>
           </div>
-          <button
-            onClick={() => void logout().then(() => navigate('/'))}
-            className="w-full flex items-center gap-2 px-4 py-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-          >
-            <LogOut className="w-5 h-5" />
-            <span className="font-medium">Logout</span>
-          </button>
-        </div>
-      </aside>
+        ))}
+      </div>
 
-      <div className="lg:ml-64">
-        <header className="bg-white border-b border-dark-200 sticky top-0 z-30">
-          <div className="flex items-center justify-between p-4">
-            <button onClick={() => setSidebarOpen(true)} className="lg:hidden">
-              <Menu size={24} />
-            </button>
-            <h1 className="text-xl font-semibold text-dark-900">Dashboard</h1>
-            <button className="relative p-2 hover:bg-dark-50 rounded-lg transition-colors">
-              <Bell className="w-6 h-6 text-dark-600" />
-              <span className="absolute top-1 right-1 w-2 h-2 bg-primary-500 rounded-full" />
-            </button>
-          </div>
-        </header>
-
-        <main className="p-4 md:p-6 lg:p-8">
-          {/* Location Card */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="bg-white rounded-2xl p-6 border border-dark-200 mb-6"
-          >
-            {!userLocation ? (
-              <div>
-                <div className="flex items-center gap-3 mb-4">
-                  <MapPin className="w-6 h-6 text-primary-600" />
-                  <div>
-                    <h3 className="text-lg font-semibold text-dark-900">Where are you right now?</h3>
-                    <p className="text-sm text-dark-600">We'll find the nearest garages for you</p>
-                  </div>
-                </div>
-                {locationError && (
-                  <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
-                    {locationError}
-                  </div>
-                )}
-                <button
-                  onClick={handleUseCurrentLocation}
-                  disabled={requestingLocation}
-                  className="px-6 py-3 bg-primary-500 text-white rounded-lg font-medium hover:bg-primary-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-                >
-                  {requestingLocation ? (
-                    <>
-                      <Loader2 className="w-5 h-5 animate-spin" />
-                      Detecting location...
-                    </>
-                  ) : (
-                    <>
-                      <MapPin className="w-5 h-5" />
-                      Use My Current Location
-                    </>
-                  )}
-                </button>
+      {/* Location card */}
+      <div className="dark-card p-5 mb-6">
+        {!userLocation ? (
+          <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+            <div className="flex items-center gap-3 flex-1">
+              <div className="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: 'rgba(59,130,246,0.15)' }}>
+                <Navigation className="w-5 h-5 text-blue-400" />
               </div>
-            ) : (
               <div>
-                <div className="flex items-start justify-between gap-4 mb-3">
-                  <div className="flex items-start gap-3">
-                    <MapPin className="w-6 h-6 text-green-600 mt-1" />
-                    <div>
-                      <h3 className="text-lg font-semibold text-dark-900">
-                        You're currently near {userLocation.locality || userLocation.city || 'your location'}
-                      </h3>
-                      <p className="text-sm text-dark-600 mt-1">{userLocation.address}</p>
-                      <p className="text-xs text-dark-500 mt-2">
-                        {userLocation.latitude.toFixed(4)}, {userLocation.longitude.toFixed(4)}
-                      </p>
-                    </div>
-                  </div>
-                  <button
-                    onClick={handleUseCurrentLocation}
-                    disabled={requestingLocation}
-                    className="px-4 py-2 border border-dark-300 rounded-lg text-sm font-medium hover:bg-dark-50 transition-colors"
-                  >
-                    Refresh
-                  </button>
-                </div>
-                <Link
-                  to="/user/nearby-garages"
-                  className="inline-flex items-center gap-2 text-sm font-medium text-primary-600 hover:text-primary-700"
-                >
+                <p className="text-sm font-semibold text-white">Enable location services</p>
+                <p className="text-xs text-slate-500">We'll find garages near you instantly</p>
+              </div>
+            </div>
+            {locationError && <p className="text-xs text-red-400">{locationError}</p>}
+            <button onClick={handleUseCurrentLocation} disabled={requestingLocation}
+              className="btn-primary text-sm flex-shrink-0">
+              {requestingLocation ? <><Loader2 className="w-4 h-4 animate-spin" /> Detecting…</> : 'Use My Location'}
+            </button>
+          </div>
+        ) : (
+          <div className="flex items-start justify-between gap-4">
+            <div className="flex items-start gap-3">
+              <div className="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5" style={{ background: 'rgba(34,197,94,0.15)' }}>
+                <MapPin className="w-5 h-5 text-green-400" />
+              </div>
+              <div>
+                <p className="text-sm font-semibold text-white">{userLocation.locality || userLocation.city || 'Your location'}</p>
+                <p className="text-xs text-slate-500 mt-0.5 max-w-sm">{userLocation.address}</p>
+                <Link to="/user/nearby-garages" className="text-xs font-medium text-orange-400 hover:text-orange-300 mt-1.5 inline-block">
                   Find nearby garages →
                 </Link>
               </div>
-            )}
-          </motion.div>
-
-          {/* Subscription Card */}
-          <UserSubscriptionCard
-            subscriptionData={subscriptionData}
-            loading={loadingSubscription}
-            error={subscriptionError}
-          />
-
-          {/* Emergency CTA */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="bg-gradient-to-r from-red-500 to-red-600 rounded-2xl p-6 md:p-8 text-white mb-8"
-          >
-            <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-              <div>
-                <h2 className="text-2xl font-bold mb-2">Need Emergency Help?</h2>
-                <p className="text-red-100">Get roadside assistance from nearby verified garages</p>
-              </div>
-              <Link 
-                to={vehicles.length === 0 ? "#" : "/user/emergency"} 
-                onClick={(e) => {
-                  if (vehicles.length === 0) {
-                    e.preventDefault();
-                    alert('Please add a vehicle first before requesting emergency assistance.');
-                    setIsVehicleModalOpen(true);
-                  }
-                }}
-                className="px-6 py-3 bg-white text-red-600 rounded-lg font-semibold hover:bg-red-50 transition-colors whitespace-nowrap flex items-center gap-2"
-              >
-                <AlertCircle className="w-5 h-5" />
-                Get Help Now
-              </Link>
             </div>
-          </motion.div>
-
-          {/* Stats Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.1 }}
-              className="bg-white rounded-xl p-6 border border-dark-200"
-            >
-              <div className="flex items-center justify-between mb-4">
-                <div className="p-3 bg-blue-50 rounded-lg">
-                  <MapPin className="w-6 h-6 text-blue-600" />
-                </div>
-                <span className="text-2xl font-bold text-dark-900">{stats.nearbyGarages}</span>
-              </div>
-              <h3 className="text-sm font-medium text-dark-600">Nearby Garages</h3>
-              {!userLocation && (
-                <p className="text-xs text-dark-500 mt-1">Enable location to see garages</p>
-              )}
-            </motion.div>
-
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.2 }}
-              className="bg-white rounded-xl p-6 border border-dark-200"
-            >
-              <div className="flex items-center justify-between mb-4">
-                <div className="p-3 bg-orange-50 rounded-lg">
-                  <Clock className="w-6 h-6 text-orange-600" />
-                </div>
-                <span className="text-2xl font-bold text-dark-900">{stats.activeRequests}</span>
-              </div>
-              <h3 className="text-sm font-medium text-dark-600">Active Requests</h3>
-            </motion.div>
-
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.3 }}
-              className="bg-white rounded-xl p-6 border border-dark-200"
-            >
-              <div className="flex items-center justify-between mb-4">
-                <div className="p-3 bg-green-50 rounded-lg">
-                  <Star className="w-6 h-6 text-green-600" />
-                </div>
-                <span className="text-2xl font-bold text-dark-900">{stats.completedRequests}</span>
-              </div>
-              <h3 className="text-sm font-medium text-dark-600">Completed Requests</h3>
-            </motion.div>
-
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.4 }}
-              className="bg-white rounded-xl p-6 border border-dark-200"
-            >
-              <div className="flex items-center justify-between mb-4">
-                <div className="p-3 bg-primary-50 rounded-lg">
-                  <Car className="w-6 h-6 text-primary-600" />
-                </div>
-                <span className="text-2xl font-bold text-dark-900">{stats.vehicles}</span>
-              </div>
-              <h3 className="text-sm font-medium text-dark-600">My Vehicles</h3>
-            </motion.div>
+            <button onClick={handleUseCurrentLocation} disabled={requestingLocation}
+              className="text-xs font-medium text-slate-400 hover:text-white px-3 py-1.5 rounded-lg transition-colors flex-shrink-0"
+              style={{ border: '1px solid rgba(255,255,255,0.10)' }}>
+              {requestingLocation ? <Loader2 className="w-3 h-3 animate-spin" /> : 'Refresh'}
+            </button>
           </div>
-
-          {/* Nearby Garages Preview */}
-          {userLocation && (
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.5 }}
-              className="bg-white rounded-xl border border-dark-200 mb-8"
-            >
-              <div className="p-6 border-b border-dark-200 flex items-center justify-between">
-                <h3 className="text-lg font-semibold text-dark-900">Nearby Garages</h3>
-                <Link 
-                  to="/user/nearby-garages" 
-                  className="text-sm font-medium text-primary-600 hover:text-primary-700"
-                >
-                  View All
-                </Link>
-              </div>
-              
-              {loadingNearbyGarages ? (
-                <div className="flex items-center justify-center p-8 text-sm text-dark-600">
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Finding nearby garages...
-                </div>
-              ) : nearbyGarages.length === 0 ? (
-                <div className="p-6 text-center">
-                  <MapPin className="w-12 h-12 text-dark-300 mx-auto mb-3" />
-                  <p className="text-sm text-dark-600">No garages found within your area</p>
-                  <p className="text-xs text-dark-500 mt-1">Try searching in a wider radius</p>
-                </div>
-              ) : (
-                <div className="divide-y divide-dark-200">
-                  {nearbyGarages.map((garage) => (
-                    <div key={garage._id} className="p-6 hover:bg-dark-50 transition-colors cursor-pointer" onClick={() => navigate(`/user/garages/${garage._id}`)}>
-                      <div className="flex items-start justify-between gap-4">
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-start gap-3 mb-3">
-                            <div className="w-12 h-12 bg-primary-50 rounded-lg flex items-center justify-center flex-shrink-0">
-                              <MapPin className="w-6 h-6 text-primary-600" />
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <h4 className="font-semibold text-dark-900">{garage.name}</h4>
-                              <p className="text-sm text-dark-600 truncate">{garage.address}</p>
-                            </div>
-                          </div>
-                          
-                          <div className="flex flex-wrap items-center gap-4 text-sm">
-                            {garage.distance !== undefined && (
-                              <div className="flex items-center gap-1 text-dark-600">
-                                <MapPin className="w-4 h-4" />
-                                <span>{garage.distance.toFixed(1)} km away</span>
-                              </div>
-                            )}
-                            
-                            {garage.rating !== undefined && (
-                              <div className="flex items-center gap-1 text-dark-600">
-                                <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
-                                <span>{garage.rating.toFixed(1)}</span>
-                                {garage.reviewCount !== undefined && (
-                                  <span className="text-dark-500">({garage.reviewCount})</span>
-                                )}
-                              </div>
-                            )}
-                            
-                            {garage.visitingCharge !== undefined && (
-                              <div className="text-dark-600">
-                                Visit: ₹{garage.visitingCharge}
-                              </div>
-                            )}
-                            
-                            <div className="ml-auto">
-                              {garage.isAvailable ? (
-                                <span className="px-3 py-1 bg-green-100 text-green-700 text-xs rounded-full">
-                                  Available
-                                </span>
-                              ) : (
-                                <span className="px-3 py-1 bg-red-100 text-red-700 text-xs rounded-full">
-                                  Busy
-                                </span>
-                              )}
-                            </div>
-                          </div>
-                          
-                          {garage.services && garage.services.length > 0 && (
-                            <div className="mt-3 flex flex-wrap gap-2">
-                              {garage.services.slice(0, 3).map((service, idx) => (
-                                <span 
-                                  key={idx} 
-                                  className="px-2 py-1 bg-dark-100 text-dark-700 text-xs rounded"
-                                >
-                                  {service}
-                                </span>
-                              ))}
-                              {garage.services.length > 3 && (
-                                <span className="px-2 py-1 text-dark-500 text-xs">
-                                  +{garage.services.length - 3} more
-                                </span>
-                              )}
-                            </div>
-                          )}
-                          
-                          <div className="mt-4 flex gap-2">
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                navigate(`/user/garages/${garage._id}`);
-                              }}
-                              className="flex-1 px-3 py-2 border border-dark-200 rounded-lg text-sm font-medium text-dark-700 hover:bg-dark-100 transition-colors"
-                            >
-                              View Details
-                            </button>
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                navigate('/user/emergency', {
-                                  state: {
-                                    selectedGarageId: garage._id,
-                                    selectedGarageName: garage.name,
-                                    latitude: userLocation?.latitude,
-                                    longitude: userLocation?.longitude,
-                                    address: userLocation?.address,
-                                  },
-                                });
-                              }}
-                              className="flex-1 px-3 py-2 bg-primary-500 text-white rounded-lg text-sm font-medium hover:bg-primary-600 transition-colors"
-                            >
-                              Request Help
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </motion.div>
-          )}
-
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.5 }}
-              className="bg-white rounded-xl border border-dark-200"
-            >
-              <div className="p-6 border-b border-dark-200 flex items-center justify-between">
-                <h3 className="text-lg font-semibold text-dark-900">Recent Requests</h3>
-                <Link to="/user/requests" className="text-sm font-medium text-primary-600">View all</Link>
-              </div>
-              <div className="divide-y divide-dark-200">
-                {loadingRequests ? (
-                  <div className="p-6 text-sm text-dark-600">Loading requests...</div>
-                ) : requests.length === 0 ? (
-                  <div className="p-6 text-sm text-dark-600">No requests yet. Create one from the emergency button.</div>
-                ) : requests.map((request) => (
-                  <div key={request._id} className="p-6 hover:bg-dark-50 transition-colors">
-                    <div className="flex items-start justify-between mb-2">
-                      <h4 className="font-medium text-dark-900">{request.issueCategory.replace(/_/g, ' ')}</h4>
-                      <span className={`px-2 py-1 text-xs rounded-full ${['PAID', 'CLOSED', 'SERVICE_COMPLETED'].includes(request.status) ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'}`}>
-                        {request.status}
-                      </span>
-                    </div>
-                    <p className="text-sm text-dark-600">{request.garageId?.name || 'Garage pending'}</p>
-                    <p className="text-xs text-dark-500 mt-1">{new Date(request.createdAt).toLocaleString()}</p>
-                  </div>
-                ))}
-              </div>
-            </motion.div>
-
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.6 }}
-              className="bg-white rounded-xl border border-dark-200"
-            >
-              <div className="p-6 border-b border-dark-200 flex items-center justify-between">
-                <h3 className="text-lg font-semibold text-dark-900">My Vehicles</h3>
-                <button
-                  onClick={openCreateModal}
-                  className="p-2 bg-primary-500 text-white rounded-lg hover:bg-primary-600 transition-colors"
-                  aria-label="Add vehicle"
-                >
-                  <Plus className="w-5 h-5" />
-                </button>
-              </div>
-
-              {errorMessage && (
-                <div className="mx-6 mt-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
-                  {errorMessage}
-                </div>
-              )}
-
-              <div className="divide-y divide-dark-200">
-                {loadingVehicles ? (
-                  <div className="flex items-center justify-center p-8 text-sm text-dark-600">
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Loading vehicles...
-                  </div>
-                ) : vehicles.length === 0 ? (
-                  <div className="p-6 text-sm text-dark-600">
-                    No vehicles saved yet. Add your first vehicle to get started.
-                  </div>
-                ) : (
-                  vehicles.map((vehicle) => (
-                    <div key={vehicle._id} className="p-6 hover:bg-dark-50 transition-colors">
-                      <div className="flex items-start gap-4">
-                        <div className="w-12 h-12 bg-primary-50 rounded-lg flex items-center justify-center flex-shrink-0">
-                          <Car className="w-6 h-6 text-primary-600" />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center justify-between gap-2">
-                            <h4 className="font-medium text-dark-900">{vehicle.brand} {vehicle.vehicleModel}</h4>
-                            <span className="px-3 py-1 bg-dark-100 text-dark-700 text-xs rounded-full">{vehicle.vehicleType}</span>
-                          </div>
-                          <p className="text-sm text-dark-600 mt-1">{vehicle.registrationNumber}</p>
-                          <p className="text-xs text-dark-500 mt-2">{vehicle.fuelType} • {vehicle.manufacturingYear}</p>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <button
-                            onClick={() => openEditModal(vehicle)}
-                            className="rounded-lg p-2 text-dark-600 hover:bg-dark-100"
-                            aria-label={`Edit ${vehicle.brand}`}
-                          >
-                            <Pencil className="h-4 w-4" />
-                          </button>
-                          <button
-                            onClick={() => void handleDeleteVehicle(vehicle._id)}
-                            className="rounded-lg p-2 text-red-600 hover:bg-red-50"
-                            aria-label={`Delete ${vehicle.brand}`}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  ))
-                )}
-              </div>
-            </motion.div>
-          </div>
-        </main>
+        )}
       </div>
 
-      {isVehicleModalOpen && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 p-4">
-          <div className="w-full max-w-xl rounded-2xl bg-white p-6 shadow-xl">
-            <div className="flex items-center justify-between">
-              <h3 className="text-lg font-semibold text-dark-900">{editingVehicle ? 'Edit Vehicle' : 'Add Vehicle'}</h3>
-              <button onClick={closeVehicleModal} className="rounded-lg p-2 text-dark-600 hover:bg-dark-100">
-                <X className="h-5 w-5" />
-              </button>
-            </div>
+      {/* Subscription card */}
+      <div className="mb-6">
+        <UserSubscriptionCard subscriptionData={subscriptionData} loading={loadingSubscription} error={subscriptionError} />
+      </div>
 
-            {errorMessage && (
-              <div className="mt-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
-                {errorMessage}
-              </div>
-            )}
-
-            <form onSubmit={handleVehicleSubmit} className="mt-4 space-y-4">
-              <div className="grid gap-4 md:grid-cols-2">
-                <label className="text-sm font-medium text-dark-700">
-                  Vehicle type
-                  <select
-                    value={vehicleForm.vehicleType}
-                    onChange={(event) => setVehicleForm((prev) => ({ ...prev, vehicleType: event.target.value }))}
-                    className="mt-1 w-full rounded-lg border border-dark-200 px-3 py-2 outline-none focus:border-primary-500"
-                  >
-                    {vehicleTypeOptions.map((option) => (
-                      <option key={option} value={option}>{option}</option>
-                    ))}
-                  </select>
-                </label>
-
-                <label className="text-sm font-medium text-dark-700">
-                  Brand
-                  <input
-                    value={vehicleForm.brand}
-                    onChange={(event) => setVehicleForm((prev) => ({ ...prev, brand: event.target.value }))}
-                    className="mt-1 w-full rounded-lg border border-dark-200 px-3 py-2 outline-none focus:border-primary-500"
-                    placeholder="Maruti"
-                    required
-                  />
-                </label>
-
-                <label className="text-sm font-medium text-dark-700">
-                  Model
-                  <input
-                    value={vehicleForm.vehicleModel}
-                    onChange={(event) => setVehicleForm((prev) => ({ ...prev, vehicleModel: event.target.value }))}
-                    className="mt-1 w-full rounded-lg border border-dark-200 px-3 py-2 outline-none focus:border-primary-500"
-                    placeholder="Swift"
-                    required
-                  />
-                </label>
-
-                <label className="text-sm font-medium text-dark-700">
-                  Registration number
-                  <input
-                    value={vehicleForm.registrationNumber}
-                    onChange={(event) => setVehicleForm((prev) => ({ ...prev, registrationNumber: event.target.value.toUpperCase() }))}
-                    className="mt-1 w-full rounded-lg border border-dark-200 px-3 py-2 outline-none focus:border-primary-500"
-                    placeholder="MH12AB1234"
-                    required
-                  />
-                </label>
-
-                <label className="text-sm font-medium text-dark-700">
-                  Fuel type
-                  <select
-                    value={vehicleForm.fuelType}
-                    onChange={(event) => setVehicleForm((prev) => ({ ...prev, fuelType: event.target.value }))}
-                    className="mt-1 w-full rounded-lg border border-dark-200 px-3 py-2 outline-none focus:border-primary-500"
-                    required
-                  >
-                    <option value="">Select fuel type</option>
-                    {fuelTypeOptions.map((option) => (
-                      <option key={option} value={option}>{option}</option>
-                    ))}
-                  </select>
-                </label>
-
-                <label className="text-sm font-medium text-dark-700">
-                  Manufacturing year
-                  <input
-                    type="number"
-                    min="1900"
-                    max={new Date().getFullYear() + 1}
-                    value={vehicleForm.manufacturingYear}
-                    onChange={(event) => setVehicleForm((prev) => ({ ...prev, manufacturingYear: event.target.value }))}
-                    className="mt-1 w-full rounded-lg border border-dark-200 px-3 py-2 outline-none focus:border-primary-500"
-                    required
-                  />
-                </label>
-              </div>
-
-              <label className="text-sm font-medium text-dark-700">
-                Notes
-                <textarea
-                  value={vehicleForm.notes}
-                  onChange={(event) => setVehicleForm((prev) => ({ ...prev, notes: event.target.value }))}
-                  className="mt-1 min-h-[90px] w-full rounded-lg border border-dark-200 px-3 py-2 outline-none focus:border-primary-500"
-                  placeholder="Optional service notes"
-                />
-              </label>
-
-              <div className="flex justify-end gap-3 pt-2">
-                <button
-                  type="button"
-                  onClick={closeVehicleModal}
-                  className="rounded-lg border border-dark-200 px-4 py-2 text-sm font-medium text-dark-700 hover:bg-dark-50"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={submittingVehicle}
-                  className="rounded-lg bg-primary-500 px-4 py-2 text-sm font-medium text-white hover:bg-primary-600 disabled:cursor-not-allowed disabled:opacity-70"
-                >
-                  {submittingVehicle ? 'Saving...' : editingVehicle ? 'Save Changes' : 'Add Vehicle'}
-                </button>
-              </div>
-            </form>
+      {/* Main grid */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Recent requests */}
+        <div className="dark-card">
+          <div className="dark-card-header">
+            <h3 className="text-sm font-semibold text-white">Recent Requests</h3>
+            <Link to="/user/requests" className="text-xs font-medium text-orange-400 hover:text-orange-300">View all</Link>
           </div>
+          {loadingRequests ? (
+            <div className="flex items-center justify-center py-10 text-sm text-slate-500">
+              <Loader2 className="w-4 h-4 animate-spin mr-2" /> Loading…
+            </div>
+          ) : requests.length === 0 ? (
+            <EmptyState icon={<Clock className="w-6 h-6" />} title="No requests yet"
+              description="Create your first emergency request using the button above." />
+          ) : (
+            <div>
+              {requests.map((req) => (
+                <Link key={req._id} to={`/user/requests/${req._id}`}
+                  className="flex items-start justify-between gap-3 px-5 py-3.5 transition-colors"
+                  style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}
+                  onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.03)'; }}
+                  onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = 'transparent'; }}>
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium text-white truncate">{req.issueCategory.replace(/_/g, ' ')}</p>
+                    <p className="text-xs text-slate-500 mt-0.5">{req.garageId?.name ?? 'Searching garage…'}</p>
+                    <p className="text-xs text-slate-600 mt-0.5">
+                      {new Date(req.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
+                    </p>
+                  </div>
+                  <StatusBadge status={req.status} className="flex-shrink-0 mt-0.5" />
+                </Link>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* My vehicles */}
+        <div className="dark-card">
+          <div className="dark-card-header">
+            <h3 className="text-sm font-semibold text-white">My Vehicles</h3>
+            <button onClick={openCreateModal}
+              className="inline-flex items-center gap-1.5 text-xs font-semibold text-orange-400 hover:text-orange-300 transition-colors">
+              <Plus className="w-3.5 h-3.5" /> Add Vehicle
+            </button>
+          </div>
+
+          {errorMessage && (
+            <div className="mx-5 mt-4 p-3 rounded-lg text-xs text-red-400" style={{ background: 'rgba(239,68,68,0.10)', border: '1px solid rgba(239,68,68,0.20)' }}>
+              {errorMessage}
+            </div>
+          )}
+
+          {loadingVehicles ? (
+            <div className="flex items-center justify-center py-10 text-sm text-slate-500">
+              <Loader2 className="w-4 h-4 animate-spin mr-2" /> Loading…
+            </div>
+          ) : vehicles.length === 0 ? (
+            <EmptyState icon={<Car className="w-6 h-6" />} title="No vehicles added"
+              description="Add a vehicle to start requesting assistance."
+              action={<button onClick={openCreateModal} className="btn-primary text-sm">Add Vehicle</button>} />
+          ) : (
+            <div>
+              {vehicles.map((v) => (
+                <div key={v._id} className="flex items-center gap-3 px-5 py-3.5" style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+                  <div className="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: 'rgba(249,115,22,0.15)' }}>
+                    <Car className="w-5 h-5 text-orange-400" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-white">{v.brand} {v.vehicleModel}</p>
+                    <p className="text-xs text-slate-500">{v.registrationNumber} · {v.fuelType}</p>
+                  </div>
+                  <span className="text-2xs font-medium text-slate-400 px-2 py-0.5 rounded-full" style={{ background: 'rgba(255,255,255,0.08)' }}>
+                    {v.vehicleType}
+                  </span>
+                  <div className="flex items-center gap-1 flex-shrink-0">
+                    <button onClick={() => openEditModal(v)}
+                      className="p-1.5 rounded transition-colors text-slate-500 hover:text-white" aria-label="Edit">
+                      <Pencil className="w-3.5 h-3.5" />
+                    </button>
+                    <button onClick={() => void handleDeleteVehicle(v._id)}
+                      className="p-1.5 rounded transition-colors text-slate-500 hover:text-red-400" aria-label="Delete">
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Nearby garages preview */}
+      {userLocation && (
+        <div className="dark-card mt-6">
+          <div className="dark-card-header">
+            <h3 className="text-sm font-semibold text-white">Nearby Garages</h3>
+            <Link to="/user/nearby-garages" className="text-xs font-medium text-orange-400 hover:text-orange-300">View all</Link>
+          </div>
+          {loadingNearbyGarages ? (
+            <div className="flex items-center justify-center py-8 text-sm text-slate-500">
+              <Loader2 className="w-4 h-4 animate-spin mr-2" /> Searching…
+            </div>
+          ) : nearbyGarages.length === 0 ? (
+            <EmptyState icon={<MapPin className="w-6 h-6" />} title="No garages found nearby"
+              description="Try extending the search radius." />
+          ) : (
+            <div>
+              {nearbyGarages.map((g) => (
+                <div key={g._id} className="flex items-center gap-4 px-5 py-3.5 cursor-pointer transition-colors"
+                  style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}
+                  onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.03)'; }}
+                  onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = 'transparent'; }}
+                  onClick={() => navigate(`/user/garages/${g._id}`)}>
+                  <div className="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: 'rgba(59,130,246,0.15)' }}>
+                    <MapPin className="w-5 h-5 text-blue-400" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-white">{g.name}</p>
+                    <p className="text-xs text-slate-500 truncate">{g.address}</p>
+                    {g.distance !== undefined && <p className="text-xs text-slate-600">{g.distance.toFixed(1)} km away</p>}
+                  </div>
+                  <div className="flex flex-col items-end gap-1.5 flex-shrink-0">
+                    {g.rating !== undefined && (
+                      <div className="flex items-center gap-1">
+                        <Star className="w-3 h-3 fill-amber-400 text-amber-400" />
+                        <span className="text-xs font-medium text-slate-300">{g.rating.toFixed(1)}</span>
+                      </div>
+                    )}
+                    <span className="text-2xs font-medium px-2 py-0.5 rounded-full"
+                      style={{ background: g.isAvailable ? 'rgba(34,197,94,0.15)' : 'rgba(100,116,139,0.15)', color: g.isAvailable ? '#4ade80' : '#64748b' }}>
+                      {g.isAvailable ? 'Available' : 'Busy'}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
-    </div>
+
+      {/* Vehicle modal */}
+      <Modal open={isVehicleModalOpen} onClose={closeVehicleModal}
+        title={editingVehicle ? 'Edit Vehicle' : 'Add Vehicle'}
+        description={editingVehicle ? 'Update your vehicle details.' : 'Add a vehicle to your profile.'}>
+        <form onSubmit={handleVehicleSubmit} className="space-y-4">
+          {errorMessage && (
+            <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-xs text-red-700">{errorMessage}</div>
+          )}
+
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium text-slate-700">Vehicle Type</label>
+              <select value={vehicleForm.vehicleType} onChange={(e) => setVehicleForm((p) => ({ ...p, vehicleType: e.target.value }))}
+                className="input-field text-sm">
+                {vehicleTypeOptions.map((o) => <option key={o}>{o}</option>)}
+              </select>
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium text-slate-700">Fuel Type</label>
+              <select value={vehicleForm.fuelType} onChange={(e) => setVehicleForm((p) => ({ ...p, fuelType: e.target.value }))}
+                className="input-field text-sm">
+                <option value="">Select fuel</option>
+                {fuelTypeOptions.map((o) => <option key={o}>{o}</option>)}
+              </select>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium text-slate-700">Brand</label>
+              <input value={vehicleForm.brand} onChange={(e) => setVehicleForm((p) => ({ ...p, brand: e.target.value }))}
+                className="input-field text-sm" placeholder="e.g. Honda" required />
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium text-slate-700">Model</label>
+              <input value={vehicleForm.vehicleModel} onChange={(e) => setVehicleForm((p) => ({ ...p, vehicleModel: e.target.value }))}
+                className="input-field text-sm" placeholder="e.g. City" required />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium text-slate-700">Registration No.</label>
+              <input value={vehicleForm.registrationNumber} onChange={(e) => setVehicleForm((p) => ({ ...p, registrationNumber: e.target.value }))}
+                className="input-field text-sm" placeholder="MH12AB1234" required />
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium text-slate-700">Year</label>
+              <input type="number" value={vehicleForm.manufacturingYear} onChange={(e) => setVehicleForm((p) => ({ ...p, manufacturingYear: e.target.value }))}
+                className="input-field text-sm" min={1990} max={new Date().getFullYear()} required />
+            </div>
+          </div>
+
+          <div className="space-y-1.5">
+            <label className="text-xs font-medium text-slate-700">Notes (optional)</label>
+            <textarea value={vehicleForm.notes} onChange={(e) => setVehicleForm((p) => ({ ...p, notes: e.target.value }))}
+              className="input-field text-sm resize-none" rows={2} placeholder="Any specific notes about the vehicle" />
+          </div>
+
+          <div className="flex gap-3 pt-2">
+            <button type="button" onClick={closeVehicleModal} className="btn-secondary flex-1 text-sm">Cancel</button>
+            <button type="submit" disabled={submittingVehicle} className="btn-primary flex-1 text-sm">
+              {submittingVehicle ? <><Loader2 className="w-4 h-4 animate-spin" /> Saving…</> : editingVehicle ? 'Update Vehicle' : 'Add Vehicle'}
+            </button>
+          </div>
+        </form>
+      </Modal>
+    </DashboardShell>
   );
 };
 

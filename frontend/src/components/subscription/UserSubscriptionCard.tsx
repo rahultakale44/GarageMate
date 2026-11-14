@@ -1,6 +1,5 @@
 import { Link } from 'react-router-dom';
 import { Crown, Calendar, AlertCircle, CheckCircle, Loader2 } from 'lucide-react';
-import { motion } from 'framer-motion';
 import type { MySubscriptionResponse } from '@/types/subscription';
 import {
   getStatusLabel,
@@ -8,6 +7,7 @@ import {
   formatBillingInterval,
   PLAN_DETAILS,
 } from '@/types/subscription';
+import { Badge } from '@/components/ui/Badge';
 
 interface UserSubscriptionCardProps {
   subscriptionData: MySubscriptionResponse | null;
@@ -18,153 +18,113 @@ interface UserSubscriptionCardProps {
 const UserSubscriptionCard = ({ subscriptionData, loading, error }: UserSubscriptionCardProps) => {
   if (loading) {
     return (
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="bg-white rounded-xl p-6 border border-dark-200"
-      >
-        <div className="flex items-center justify-center py-8">
-          <Loader2 className="h-6 w-6 animate-spin text-primary-500" />
-          <span className="ml-3 text-dark-600">Loading membership...</span>
-        </div>
-      </motion.div>
+      <div className="dark-card p-5 flex items-center justify-center py-8">
+        <Loader2 className="w-5 h-5 animate-spin text-orange-500" />
+        <span className="ml-2.5 text-sm text-slate-500">Loading membership…</span>
+      </div>
     );
   }
 
   if (error) {
     return (
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="bg-white rounded-xl p-6 border border-red-200"
-      >
-        <div className="flex items-start gap-3">
-          <AlertCircle className="h-5 w-5 text-red-500 flex-shrink-0 mt-0.5" />
-          <div>
-            <p className="text-sm font-medium text-red-700">Unable to load membership</p>
-            <p className="text-xs text-red-600 mt-1">{error}</p>
-          </div>
+      <div className="dark-card p-5" style={{ borderColor: 'rgba(239,68,68,0.2)' }}>
+        <div className="flex items-start gap-2.5">
+          <AlertCircle className="w-4 h-4 text-red-400 flex-shrink-0 mt-0.5" />
+          <p className="text-sm text-red-400">{error}</p>
         </div>
-      </motion.div>
+      </div>
     );
   }
 
-  if (!subscriptionData) {
-    return null;
-  }
+  if (!subscriptionData) return null;
 
   const { subscription, plan, status, isFree: isFreePlan } = subscriptionData;
   const planInfo = PLAN_DETAILS[plan];
   const isProMember = !isFreePlan && subscription;
 
+  const statusColorMap: Record<string, 'green' | 'yellow' | 'orange' | 'red' | 'slate'> = {
+    green: 'green', yellow: 'yellow', orange: 'orange', red: 'red', gray: 'slate',
+  };
+  const statusVariant = statusColorMap[getStatusColor(status)] ?? 'slate';
+
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      className={`bg-gradient-to-br ${
-        isProMember
-          ? 'from-orange-50 to-orange-100 border-2 border-orange-300'
-          : 'from-white to-gray-50 border border-dark-200'
-      } rounded-xl p-6 shadow-sm`}
+    <div
+      className="dark-card p-5"
+      style={isProMember ? { borderColor: 'rgba(249,115,22,0.25)', background: 'rgba(249,115,22,0.06)' } : {}}
     >
+      {/* Header */}
       <div className="flex items-start justify-between mb-4">
         <div className="flex items-center gap-3">
           <div
-            className={`p-3 rounded-lg ${
-              isProMember ? 'bg-gradient-to-br from-orange-500 to-orange-600' : 'bg-gray-200'
-            }`}
+            className="w-9 h-9 rounded-lg flex items-center justify-center"
+            style={{ background: isProMember ? 'rgba(249,115,22,0.20)' : 'rgba(255,255,255,0.08)' }}
           >
-            <Crown className={`w-6 h-6 ${isProMember ? 'text-white' : 'text-gray-500'}`} />
+            <Crown className={`w-4 h-4 ${isProMember ? 'text-orange-400' : 'text-slate-500'}`} />
           </div>
           <div>
-            <h3 className="text-lg font-semibold text-dark-900">
-              {planInfo.displayName} Membership
-            </h3>
-            <p className="text-sm text-dark-600">
+            <p className="text-sm font-semibold text-white">{planInfo.displayName} Membership</p>
+            <p className="text-xs text-slate-500">
               {isProMember ? 'Premium benefits active' : 'Explore Pro benefits'}
             </p>
           </div>
         </div>
-        {subscription && (
-          <span
-            className={`px-3 py-1 rounded-full text-xs font-medium ${
-              getStatusColor(status) === 'green'
-                ? 'bg-green-100 text-green-700'
-                : getStatusColor(status) === 'yellow'
-                  ? 'bg-yellow-100 text-yellow-700'
-                  : getStatusColor(status) === 'red'
-                    ? 'bg-red-100 text-red-700'
-                    : 'bg-gray-100 text-gray-700'
-            }`}
-          >
-            {getStatusLabel(status)}
-          </span>
-        )}
+        {subscription && <Badge variant={statusVariant}>{getStatusLabel(status)}</Badge>}
       </div>
 
       {isProMember && subscription ? (
-        <div className="space-y-4">
-          <div className="flex items-center gap-2 text-sm text-dark-700">
-            <Calendar className="w-4 h-4" />
+        <div className="space-y-3">
+          <div className="flex items-center gap-2 text-xs text-slate-400">
+            <Calendar className="w-3.5 h-3.5 text-slate-500" />
             <span>
-              {subscription.billingInterval === 'MONTHLY' ? 'Monthly' : 'Annual'} plan • ₹
+              {subscription.billingInterval === 'MONTHLY' ? 'Monthly' : 'Annual'} · ₹
               {subscription.amount}/{formatBillingInterval(subscription.billingInterval)}
             </span>
           </div>
-
-          <div className="flex items-center gap-2 text-sm text-dark-700">
-            <CheckCircle className="w-4 h-4 text-green-600" />
-            <span>
-              Renews on {new Date(subscription.currentPeriodEnd).toLocaleDateString('en-IN')}
-            </span>
+          <div className="flex items-center gap-2 text-xs text-slate-400">
+            <CheckCircle className="w-3.5 h-3.5 text-green-400" />
+            <span>Renews {new Date(subscription.currentPeriodEnd).toLocaleDateString('en-IN')}</span>
           </div>
 
           {subscription.cancelAtPeriodEnd && (
-            <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
-              <div className="flex items-start gap-2">
-                <AlertCircle className="w-4 h-4 text-yellow-600 flex-shrink-0 mt-0.5" />
-                <div>
-                  <p className="text-xs font-medium text-yellow-800">Cancellation Scheduled</p>
-                  <p className="text-xs text-yellow-700 mt-1">
-                    Your membership will end on{' '}
-                    {new Date(subscription.currentPeriodEnd).toLocaleDateString('en-IN')}
-                  </p>
-                </div>
-              </div>
+            <div className="p-3 rounded-lg flex items-start gap-2" style={{ background: 'rgba(234,179,8,0.10)', border: '1px solid rgba(234,179,8,0.20)' }}>
+              <AlertCircle className="w-3.5 h-3.5 text-yellow-400 flex-shrink-0 mt-0.5" />
+              <p className="text-xs text-yellow-300">
+                Cancellation scheduled — ends {new Date(subscription.currentPeriodEnd).toLocaleDateString('en-IN')}
+              </p>
             </div>
           )}
 
-          <div className="pt-4 border-t border-orange-200">
-            <Link
-              to="/pro"
-              className="block w-full text-center px-4 py-2 bg-white border border-orange-300 rounded-lg text-sm font-medium text-orange-700 hover:bg-orange-50 transition-colors"
-            >
-              Manage Membership
-            </Link>
-          </div>
-        </div>
-      ) : (
-        <div className="space-y-4">
-          <div className="space-y-2">
-            {planInfo.features.slice(0, 3).map((feature, index) => (
-              <div key={index} className="flex items-start gap-2 text-sm text-dark-700">
-                <CheckCircle className="w-4 h-4 text-green-600 flex-shrink-0 mt-0.5" />
-                <span>{feature}</span>
+          <div className="pt-3" style={{ borderTop: '1px solid rgba(255,255,255,0.07)' }}>
+            {planInfo.features.slice(0, 3).map((feature, i) => (
+              <div key={i} className="flex items-start gap-1.5 text-xs text-slate-400 mb-1.5">
+                <CheckCircle className="w-3 h-3 text-green-400 flex-shrink-0 mt-0.5" />
+                {feature}
               </div>
             ))}
           </div>
 
-          <div className="pt-4 border-t border-dark-200">
-            <Link
-              to="/pro"
-              className="block w-full text-center px-4 py-3 bg-gradient-to-r from-orange-500 to-orange-600 rounded-lg text-sm font-semibold text-white hover:from-orange-600 hover:to-orange-700 transition-all shadow-md hover:shadow-lg"
-            >
-              Explore Pro Benefits →
-            </Link>
-          </div>
+          <Link to="/pro"
+            className="block w-full text-center py-2 text-xs font-semibold text-orange-400 rounded-lg hover:text-orange-300 transition-colors mt-1"
+            style={{ border: '1px solid rgba(249,115,22,0.25)' }}>
+            Manage Membership
+          </Link>
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {planInfo.features.slice(0, 3).map((feature, i) => (
+            <div key={i} className="flex items-start gap-1.5 text-xs text-slate-500">
+              <CheckCircle className="w-3 h-3 text-slate-600 flex-shrink-0 mt-0.5" />
+              {feature}
+            </div>
+          ))}
+          <Link to="/pro"
+            className="block w-full text-center py-2.5 text-xs font-bold bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors mt-1"
+            style={{ boxShadow: '0 2px 10px rgba(249,115,22,0.30)' }}>
+            Explore Pro Benefits →
+          </Link>
         </div>
       )}
-    </motion.div>
+    </div>
   );
 };
 

@@ -92,16 +92,17 @@ const PageLoader = () => {
                   transition={{ duration: 0.5, delay: 0.6 }}
                 />
                 
-                {/* Car Icon with Slide-in Animation */}
+                {/* Car Icon with Fade-in Animation (stays inside circle) */}
                 <motion.g 
                   transform="translate(90, 55)"
-                  initial={{ x: -200, opacity: 0 }}
-                  animate={{ x: 0, opacity: 1 }}
+                  initial={{ scale: 0, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
                   transition={{ 
-                    duration: 0.8, 
+                    duration: 0.6, 
                     delay: 0.8,
                     type: "spring",
-                    stiffness: 100
+                    stiffness: 150,
+                    damping: 12
                   }}
                 >
                   {/* Car body */}

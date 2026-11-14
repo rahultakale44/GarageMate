@@ -1,472 +1,227 @@
 import { useEffect, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { motion } from 'framer-motion';
-import {
-  Car,
-  Plus,
-  Pencil,
-  Trash2,
-  X,
-  Loader2,
-  ArrowLeft,
-  AlertCircle,
-} from 'lucide-react';
+import { Car, Plus, Pencil, Trash2, Loader2 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import axiosInstance from '@/lib/axios';
 import { API_ENDPOINTS } from '@/config/api';
+import UserPageLayout from '@/components/layout/UserPageLayout';
+import { EmptyState } from '@/components/ui/EmptyState';
+import { Modal } from '@/components/ui/Modal';
 
 interface VehicleRecord {
-  _id: string;
-  vehicleType: string;
-  brand: string;
-  vehicleModel: string;
-  registrationNumber: string;
-  fuelType: string;
-  manufacturingYear: number;
-  notes?: string;
+  _id: string; vehicleType: string; brand: string; vehicleModel: string;
+  registrationNumber: string; fuelType: string; manufacturingYear: number; notes?: string;
 }
-
 interface VehicleFormState {
-  vehicleType: string;
-  brand: string;
-  vehicleModel: string;
-  registrationNumber: string;
-  fuelType: string;
-  manufacturingYear: string;
-  notes: string;
+  vehicleType: string; brand: string; vehicleModel: string; registrationNumber: string;
+  fuelType: string; manufacturingYear: string; notes: string;
 }
 
 const defaultVehicleForm = (): VehicleFormState => ({
-  vehicleType: 'CAR',
-  brand: '',
-  vehicleModel: '',
-  registrationNumber: '',
-  fuelType: '',
-  manufacturingYear: new Date().getFullYear().toString(),
-  notes: '',
+  vehicleType: 'CAR', brand: '', vehicleModel: '', registrationNumber: '',
+  fuelType: '', manufacturingYear: new Date().getFullYear().toString(), notes: '',
 });
 
 const vehicleTypeOptions = ['BIKE', 'SCOOTER', 'CAR', 'SUV', 'VAN', 'OTHER'];
 const fuelTypeOptions = ['Petrol', 'Diesel', 'CNG', 'Electric', 'Hybrid'];
 
+const fuelColors: Record<string, string> = {
+  Petrol: 'bg-blue-50 text-blue-700', Diesel: 'bg-yellow-50 text-yellow-700',
+  CNG: 'bg-green-50 text-green-700', Electric: 'bg-purple-50 text-purple-700',
+  Hybrid: 'bg-teal-50 text-teal-700',
+};
+
 const MyVehiclesPage = () => {
-  const navigate = useNavigate();
   const { user } = useAuth();
   const [vehicles, setVehicles] = useState<VehicleRecord[]>([]);
-  const [loadingVehicles, setLoadingVehicles] = useState(false);
-  const [submittingVehicle, setSubmittingVehicle] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [isVehicleModalOpen, setIsVehicleModalOpen] = useState(false);
+  const [modalOpen, setModalOpen] = useState(false);
   const [editingVehicle, setEditingVehicle] = useState<VehicleRecord | null>(null);
-  const [vehicleForm, setVehicleForm] = useState<VehicleFormState>(defaultVehicleForm());
+  const [form, setForm] = useState<VehicleFormState>(defaultVehicleForm());
 
   const fetchVehicles = async () => {
-    if (!user) {
-      setVehicles([]);
-      return;
-    }
-
-    setLoadingVehicles(true);
-    setErrorMessage(null);
-
+    if (!user) return;
+    setLoading(true);
     try {
-      const response = await axiosInstance.get(API_ENDPOINTS.VEHICLES.LIST);
-      setVehicles(response.data?.data || []);
-    } catch (error) {
-      const message = error instanceof Error ? error.message : 'Unable to load vehicles';
-      setErrorMessage(message);
-    } finally {
-      setLoadingVehicles(false);
-    }
+      const res = await axiosInstance.get(API_ENDPOINTS.VEHICLES.LIST);
+      setVehicles(res.data?.data || []);
+    } catch (err) { setErrorMessage(err instanceof Error ? err.message : 'Unable to load vehicles'); }
+    finally { setLoading(false); }
   };
 
-  useEffect(() => {
-    void fetchVehicles();
-  }, [user?._id]);
+  useEffect(() => { void fetchVehicles(); }, [user?._id]);
 
-  const openCreateModal = () => {
-    setEditingVehicle(null);
-    setVehicleForm(defaultVehicleForm());
+  const openCreate = () => { setEditingVehicle(null); setForm(defaultVehicleForm()); setErrorMessage(null); setModalOpen(true); };
+  const openEdit = (v: VehicleRecord) => {
+    setEditingVehicle(v);
+    setForm({ vehicleType: v.vehicleType, brand: v.brand, vehicleModel: v.vehicleModel, registrationNumber: v.registrationNumber, fuelType: v.fuelType, manufacturingYear: String(v.manufacturingYear), notes: v.notes || '' });
     setErrorMessage(null);
-    setIsVehicleModalOpen(true);
+    setModalOpen(true);
   };
+  const closeModal = () => { setModalOpen(false); setEditingVehicle(null); setForm(defaultVehicleForm()); setErrorMessage(null); };
 
-  const openEditModal = (vehicle: VehicleRecord) => {
-    setEditingVehicle(vehicle);
-    setVehicleForm({
-      vehicleType: vehicle.vehicleType,
-      brand: vehicle.brand,
-      vehicleModel: vehicle.vehicleModel,
-      registrationNumber: vehicle.registrationNumber,
-      fuelType: vehicle.fuelType,
-      manufacturingYear: String(vehicle.manufacturingYear),
-      notes: vehicle.notes || '',
-    });
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    setSubmitting(true);
     setErrorMessage(null);
-    setIsVehicleModalOpen(true);
-  };
-
-  const closeVehicleModal = () => {
-    setIsVehicleModalOpen(false);
-    setEditingVehicle(null);
-    setVehicleForm(defaultVehicleForm());
-    setErrorMessage(null);
-  };
-
-  const handleVehicleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    setSubmittingVehicle(true);
-    setErrorMessage(null);
-
     try {
-      const payload = {
-        ...vehicleForm,
-        manufacturingYear: Number(vehicleForm.manufacturingYear),
-      };
-
-      let response: { data: { data: VehicleRecord } };
+      const payload = { ...form, manufacturingYear: Number(form.manufacturingYear) };
       if (editingVehicle) {
-        response = await axiosInstance.patch(API_ENDPOINTS.VEHICLES.UPDATE(editingVehicle._id), payload);
-        setVehicles((prev) => prev.map((vehicle) => (vehicle._id === editingVehicle._id ? response.data.data : vehicle)));
+        const res = await axiosInstance.patch(API_ENDPOINTS.VEHICLES.UPDATE(editingVehicle._id), payload);
+        setVehicles((p) => p.map((v) => v._id === editingVehicle._id ? res.data.data : v));
       } else {
-        response = await axiosInstance.post(API_ENDPOINTS.VEHICLES.CREATE, payload);
-        setVehicles((prev) => [response.data.data, ...prev]);
+        const res = await axiosInstance.post(API_ENDPOINTS.VEHICLES.CREATE, payload);
+        setVehicles((p) => [res.data.data, ...p]);
       }
-
-      closeVehicleModal();
-    } catch (error) {
-      const message = error instanceof Error ? error.message : 'Unable to save vehicle';
-      setErrorMessage(message);
-    } finally {
-      setSubmittingVehicle(false);
-    }
+      closeModal();
+    } catch (err) { setErrorMessage(err instanceof Error ? err.message : 'Unable to save vehicle'); }
+    finally { setSubmitting(false); }
   };
 
-  const handleDeleteVehicle = async (vehicleId: string) => {
-    const confirmed = window.confirm('Delete this vehicle from your profile?');
-    if (!confirmed) {
-      return;
-    }
-
+  const handleDelete = async (vehicleId: string) => {
+    if (!window.confirm('Remove this vehicle from your profile?')) return;
     try {
       await axiosInstance.delete(API_ENDPOINTS.VEHICLES.DELETE(vehicleId));
-      setVehicles((prev) => prev.filter((vehicle) => vehicle._id !== vehicleId));
-    } catch (error) {
-      const message = error instanceof Error ? error.message : 'Unable to delete vehicle';
-      setErrorMessage(message);
-    }
+      setVehicles((p) => p.filter((v) => v._id !== vehicleId));
+    } catch (err) { setErrorMessage(err instanceof Error ? err.message : 'Unable to delete vehicle'); }
   };
 
-  const getVehicleIcon = () => {
-    // Return different icons based on vehicle type if needed
-    return <Car className="w-8 h-8 text-primary-600" />;
-  };
+  const headerActions = (
+    <button onClick={openCreate} className="btn-primary text-sm">
+      <Plus className="w-4 h-4" /> Add Vehicle
+    </button>
+  );
 
   return (
-    <div className="min-h-screen bg-dark-50">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Header */}
-        <div className="mb-8">
-          <button
-            onClick={() => navigate('/user/dashboard')}
-            className="inline-flex items-center gap-2 text-dark-600 hover:text-dark-900 mb-4"
-          >
-            <ArrowLeft className="w-5 h-5" />
-            Back to Dashboard
-          </button>
-          
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-3xl font-display font-bold text-dark-900">My Vehicles</h1>
-              <p className="text-dark-600 mt-2">Manage your vehicles for emergency assistance requests</p>
-            </div>
-            <button
-              onClick={openCreateModal}
-              className="inline-flex items-center gap-2 px-6 py-3 bg-primary-500 text-white rounded-lg font-semibold hover:bg-primary-600 transition-colors"
-            >
-              <Plus className="w-5 h-5" />
-              Add Vehicle
-            </button>
-          </div>
-        </div>
-
-        {/* Error Message */}
-        {errorMessage && (
-          <motion.div
-            initial={{ opacity: 0, y: -10 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg flex items-start gap-3"
-          >
-            <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
-            <div className="flex-1">
-              <p className="text-sm font-medium text-red-900">Error</p>
-              <p className="text-sm text-red-700 mt-1">{errorMessage}</p>
-            </div>
-            <button onClick={() => setErrorMessage(null)} className="text-red-600 hover:text-red-800">
-              <X className="w-5 h-5" />
-            </button>
-          </motion.div>
-        )}
-
-        {/* Vehicles Grid */}
-        {loadingVehicles ? (
-          <div className="flex flex-col items-center justify-center py-16">
-            <Loader2 className="w-12 h-12 text-primary-500 animate-spin mb-4" />
-            <p className="text-dark-600">Loading your vehicles...</p>
-          </div>
-        ) : vehicles.length === 0 ? (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="bg-white rounded-2xl border border-dark-200 p-12 text-center"
-          >
-            <div className="w-20 h-20 bg-dark-100 rounded-full flex items-center justify-center mx-auto mb-6">
-              <Car className="w-10 h-10 text-dark-400" />
-            </div>
-            <h3 className="text-xl font-semibold text-dark-900 mb-2">No vehicles added yet</h3>
-            <p className="text-dark-600 mb-6">Add your first vehicle to start requesting emergency assistance</p>
-            <button
-              onClick={openCreateModal}
-              className="inline-flex items-center gap-2 px-6 py-3 bg-primary-500 text-white rounded-lg font-semibold hover:bg-primary-600 transition-colors"
-            >
-              <Plus className="w-5 h-5" />
-              Add Your First Vehicle
-            </button>
-          </motion.div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {vehicles.map((vehicle, index) => (
-              <motion.div
-                key={vehicle._id}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: index * 0.1 }}
-                className="bg-white rounded-xl border border-dark-200 p-6 hover:shadow-lg transition-shadow"
-              >
-                <div className="flex items-start justify-between mb-4">
-                  <div className="w-16 h-16 bg-primary-50 rounded-xl flex items-center justify-center">
-                    {getVehicleIcon()}
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => openEditModal(vehicle)}
-                      className="p-2 text-dark-600 hover:bg-dark-100 rounded-lg transition-colors"
-                      aria-label="Edit vehicle"
-                    >
-                      <Pencil className="w-4 h-4" />
-                    </button>
-                    <button
-                      onClick={() => void handleDeleteVehicle(vehicle._id)}
-                      className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                      aria-label="Delete vehicle"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </div>
-                </div>
-
-                <div className="space-y-3">
-                  <div>
-                    <h3 className="text-lg font-semibold text-dark-900">
-                      {vehicle.brand} {vehicle.vehicleModel}
-                    </h3>
-                    <p className="text-primary-600 font-medium text-lg mt-1">
-                      {vehicle.registrationNumber}
-                    </p>
-                  </div>
-
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <span className="px-3 py-1 bg-primary-100 text-primary-700 text-xs font-medium rounded-full">
-                      {vehicle.vehicleType}
-                    </span>
-                    <span className="px-3 py-1 bg-dark-100 text-dark-700 text-xs font-medium rounded-full">
-                      {vehicle.fuelType}
-                    </span>
-                    <span className="px-3 py-1 bg-dark-100 text-dark-700 text-xs font-medium rounded-full">
-                      {vehicle.manufacturingYear}
-                    </span>
-                  </div>
-
-                  {vehicle.notes && (
-                    <p className="text-sm text-dark-600 mt-3 line-clamp-2">{vehicle.notes}</p>
-                  )}
-                </div>
-
-                <div className="mt-6 pt-4 border-t border-dark-100">
-                  <Link
-                    to="/user/emergency"
-                    state={{ selectedVehicleId: vehicle._id }}
-                    className="w-full inline-flex items-center justify-center gap-2 px-4 py-2 bg-dark-50 text-dark-900 rounded-lg font-medium hover:bg-dark-100 transition-colors"
-                  >
-                    <AlertCircle className="w-4 h-4" />
-                    Request Assistance
-                  </Link>
-                </div>
-              </motion.div>
-            ))}
-          </div>
-        )}
-
-        {/* Info Banner */}
-        {vehicles.length > 0 && (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.5 }}
-            className="mt-8 bg-blue-50 border border-blue-200 rounded-xl p-6"
-          >
-            <div className="flex items-start gap-4">
-              <div className="p-2 bg-blue-100 rounded-lg">
-                <AlertCircle className="w-5 h-5 text-blue-600" />
-              </div>
-              <div>
-                <h4 className="font-semibold text-blue-900 mb-1">Quick Tip</h4>
-                <p className="text-sm text-blue-700">
-                  Keep your vehicle information up to date for faster emergency assistance. 
-                  You can request help for any of your vehicles at any time.
-                </p>
-              </div>
-            </div>
-          </motion.div>
-        )}
-      </div>
-
-      {/* Vehicle Modal */}
-      {isVehicleModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
-          <motion.div
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            className="w-full max-w-2xl rounded-2xl bg-white p-6 shadow-xl max-h-[90vh] overflow-y-auto"
-          >
-            <div className="flex items-center justify-between mb-6">
-              <h3 className="text-xl font-semibold text-dark-900">
-                {editingVehicle ? 'Edit Vehicle' : 'Add New Vehicle'}
-              </h3>
-              <button onClick={closeVehicleModal} className="p-2 hover:bg-dark-100 rounded-lg transition-colors">
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            {errorMessage && (
-              <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
-                {errorMessage}
-              </div>
-            )}
-
-            <form onSubmit={handleVehicleSubmit} className="space-y-4">
-              <div className="grid gap-4 md:grid-cols-2">
-                <label className="block">
-                  <span className="text-sm font-medium text-dark-700">Vehicle Type *</span>
-                  <select
-                    value={vehicleForm.vehicleType}
-                    onChange={(e) => setVehicleForm((prev) => ({ ...prev, vehicleType: e.target.value }))}
-                    className="mt-1 w-full rounded-lg border border-dark-300 px-3 py-2 outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-200"
-                    required
-                  >
-                    {vehicleTypeOptions.map((option) => (
-                      <option key={option} value={option}>{option}</option>
-                    ))}
-                  </select>
-                </label>
-
-                <label className="block">
-                  <span className="text-sm font-medium text-dark-700">Brand *</span>
-                  <input
-                    type="text"
-                    value={vehicleForm.brand}
-                    onChange={(e) => setVehicleForm((prev) => ({ ...prev, brand: e.target.value }))}
-                    className="mt-1 w-full rounded-lg border border-dark-300 px-3 py-2 outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-200"
-                    placeholder="e.g. Maruti, Honda"
-                    required
-                  />
-                </label>
-
-                <label className="block">
-                  <span className="text-sm font-medium text-dark-700">Model *</span>
-                  <input
-                    type="text"
-                    value={vehicleForm.vehicleModel}
-                    onChange={(e) => setVehicleForm((prev) => ({ ...prev, vehicleModel: e.target.value }))}
-                    className="mt-1 w-full rounded-lg border border-dark-300 px-3 py-2 outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-200"
-                    placeholder="e.g. Swift, Activa"
-                    required
-                  />
-                </label>
-
-                <label className="block">
-                  <span className="text-sm font-medium text-dark-700">Registration Number *</span>
-                  <input
-                    type="text"
-                    value={vehicleForm.registrationNumber}
-                    onChange={(e) => setVehicleForm((prev) => ({ ...prev, registrationNumber: e.target.value.toUpperCase() }))}
-                    className="mt-1 w-full rounded-lg border border-dark-300 px-3 py-2 outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-200"
-                    placeholder="e.g. MH12AB1234"
-                    required
-                  />
-                </label>
-
-                <label className="block">
-                  <span className="text-sm font-medium text-dark-700">Fuel Type *</span>
-                  <select
-                    value={vehicleForm.fuelType}
-                    onChange={(e) => setVehicleForm((prev) => ({ ...prev, fuelType: e.target.value }))}
-                    className="mt-1 w-full rounded-lg border border-dark-300 px-3 py-2 outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-200"
-                    required
-                  >
-                    <option value="">Select fuel type</option>
-                    {fuelTypeOptions.map((option) => (
-                      <option key={option} value={option}>{option}</option>
-                    ))}
-                  </select>
-                </label>
-
-                <label className="block">
-                  <span className="text-sm font-medium text-dark-700">Manufacturing Year *</span>
-                  <input
-                    type="number"
-                    min="1900"
-                    max={new Date().getFullYear() + 1}
-                    value={vehicleForm.manufacturingYear}
-                    onChange={(e) => setVehicleForm((prev) => ({ ...prev, manufacturingYear: e.target.value }))}
-                    className="mt-1 w-full rounded-lg border border-dark-300 px-3 py-2 outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-200"
-                    required
-                  />
-                </label>
-              </div>
-
-              <label className="block">
-                <span className="text-sm font-medium text-dark-700">Notes (Optional)</span>
-                <textarea
-                  value={vehicleForm.notes}
-                  onChange={(e) => setVehicleForm((prev) => ({ ...prev, notes: e.target.value }))}
-                  className="mt-1 w-full min-h-[100px] rounded-lg border border-dark-300 px-3 py-2 outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-200"
-                  placeholder="Any additional notes about your vehicle..."
-                />
-              </label>
-
-              <div className="flex justify-end gap-3 pt-4">
-                <button
-                  type="button"
-                  onClick={closeVehicleModal}
-                  className="px-6 py-2 border border-dark-300 rounded-lg font-medium text-dark-700 hover:bg-dark-50 transition-colors"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={submittingVehicle}
-                  className="px-6 py-2 bg-primary-500 text-white rounded-lg font-medium hover:bg-primary-600 disabled:opacity-60 disabled:cursor-not-allowed transition-colors inline-flex items-center gap-2"
-                >
-                  {submittingVehicle && <Loader2 className="w-4 h-4 animate-spin" />}
-                  {submittingVehicle ? 'Saving...' : editingVehicle ? 'Save Changes' : 'Add Vehicle'}
-                </button>
-              </div>
-            </form>
-          </motion.div>
+    <UserPageLayout title="My Vehicles" subtitle="Manage your vehicles for emergency assistance requests" headerActions={headerActions}>
+      {errorMessage && (
+        <div className="mb-5 p-3.5 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700 flex items-center justify-between gap-3">
+          {errorMessage}
+          <button onClick={() => setErrorMessage(null)} className="text-red-400 hover:text-red-600">✕</button>
         </div>
       )}
-    </div>
+
+      {loading ? (
+        <div className="flex items-center justify-center py-20 text-sm text-slate-500">
+          <Loader2 className="w-5 h-5 animate-spin mr-2" /> Loading vehicles…
+        </div>
+      ) : vehicles.length === 0 ? (
+        <EmptyState icon={<Car className="w-7 h-7" />} title="No vehicles yet"
+          description="Add your first vehicle to start requesting emergency assistance."
+          action={<button onClick={openCreate} className="btn-primary text-sm">Add Vehicle</button>} />
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+          {vehicles.map((v) => (
+            <div key={v._id} className="card p-5 hover:border-orange-200 transition-all group">
+              <div className="flex items-start justify-between mb-4">
+                <div className="w-11 h-11 bg-orange-50 rounded-xl flex items-center justify-center group-hover:bg-orange-100 transition-colors">
+                  <Car className="w-5 h-5 text-orange-500" />
+                </div>
+                <span className="text-xs font-semibold text-slate-500 bg-slate-100 px-2.5 py-1 rounded-full">{v.vehicleType}</span>
+              </div>
+
+              <h3 className="text-base font-semibold text-slate-900 mb-0.5">{v.brand} {v.vehicleModel}</h3>
+              <p className="text-sm text-slate-500 mb-3">{v.registrationNumber}</p>
+
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <span className={`text-xs font-medium px-2.5 py-1 rounded-full ${fuelColors[v.fuelType] ?? 'bg-slate-100 text-slate-600'}`}>
+                    {v.fuelType || '—'}
+                  </span>
+                  <span className="text-xs text-slate-400">{v.manufacturingYear}</span>
+                </div>
+                <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <button onClick={() => openEdit(v)}
+                    className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-colors" aria-label="Edit">
+                    <Pencil className="w-3.5 h-3.5" />
+                  </button>
+                  <button onClick={() => void handleDelete(v._id)}
+                    className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors" aria-label="Delete">
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              </div>
+
+              {v.notes && <p className="mt-3 pt-3 border-t border-slate-100 text-xs text-slate-400 italic">{v.notes}</p>}
+            </div>
+          ))}
+
+          {/* Add another card */}
+          <button onClick={openCreate}
+            className="card p-5 border-dashed flex flex-col items-center justify-center gap-3 text-slate-400 hover:text-orange-500 hover:border-orange-300 hover:bg-orange-50/30 transition-all min-h-[160px]">
+            <div className="w-11 h-11 border-2 border-dashed border-current rounded-xl flex items-center justify-center">
+              <Plus className="w-5 h-5" />
+            </div>
+            <span className="text-sm font-medium">Add Another Vehicle</span>
+          </button>
+        </div>
+      )}
+
+      {/* Vehicle Modal */}
+      <Modal open={modalOpen} onClose={closeModal}
+        title={editingVehicle ? 'Edit Vehicle' : 'Add Vehicle'}
+        description={editingVehicle ? 'Update your vehicle information.' : 'Add a new vehicle to your profile.'}>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          {errorMessage && (
+            <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-xs text-red-700">{errorMessage}</div>
+          )}
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium text-slate-700">Vehicle Type</label>
+              <select value={form.vehicleType} onChange={(e) => setForm((p) => ({ ...p, vehicleType: e.target.value }))}
+                className="input-field text-sm">
+                {vehicleTypeOptions.map((o) => <option key={o}>{o}</option>)}
+              </select>
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium text-slate-700">Fuel Type</label>
+              <select value={form.fuelType} onChange={(e) => setForm((p) => ({ ...p, fuelType: e.target.value }))}
+                className="input-field text-sm">
+                <option value="">Select</option>
+                {fuelTypeOptions.map((o) => <option key={o}>{o}</option>)}
+              </select>
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium text-slate-700">Brand</label>
+              <input value={form.brand} onChange={(e) => setForm((p) => ({ ...p, brand: e.target.value }))}
+                className="input-field text-sm" placeholder="e.g. Honda" required />
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium text-slate-700">Model</label>
+              <input value={form.vehicleModel} onChange={(e) => setForm((p) => ({ ...p, vehicleModel: e.target.value }))}
+                className="input-field text-sm" placeholder="e.g. City" required />
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium text-slate-700">Registration No.</label>
+              <input value={form.registrationNumber} onChange={(e) => setForm((p) => ({ ...p, registrationNumber: e.target.value }))}
+                className="input-field text-sm" placeholder="MH12AB1234" required />
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium text-slate-700">Year</label>
+              <input type="number" value={form.manufacturingYear}
+                onChange={(e) => setForm((p) => ({ ...p, manufacturingYear: e.target.value }))}
+                className="input-field text-sm" min={1990} max={new Date().getFullYear()} required />
+            </div>
+          </div>
+          <div className="space-y-1.5">
+            <label className="text-xs font-medium text-slate-700">Notes (optional)</label>
+            <textarea value={form.notes} onChange={(e) => setForm((p) => ({ ...p, notes: e.target.value }))}
+              className="input-field text-sm resize-none" rows={2} placeholder="Any specific notes about this vehicle" />
+          </div>
+          <div className="flex gap-3 pt-2">
+            <button type="button" onClick={closeModal} className="btn-secondary flex-1 text-sm">Cancel</button>
+            <button type="submit" disabled={submitting} className="btn-primary flex-1 text-sm">
+              {submitting ? <><Loader2 className="w-4 h-4 animate-spin" /> Saving…</> : editingVehicle ? 'Update Vehicle' : 'Add Vehicle'}
+            </button>
+          </div>
+        </form>
+      </Modal>
+    </UserPageLayout>
   );
 };
 

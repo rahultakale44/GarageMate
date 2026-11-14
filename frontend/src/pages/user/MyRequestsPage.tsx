@@ -1,25 +1,23 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
-import { motion } from 'framer-motion';
-import { ArrowLeft, CalendarClock, Car, Clock3, MapPin, Trash2, Wrench } from 'lucide-react';
+import { useNavigate, useParams } from 'react-router-dom';
+import { Car, MapPin, Clock3, Trash2, Wrench, CalendarClock, Loader2, AlertCircle } from 'lucide-react';
 import axiosInstance from '@/lib/axios';
 import { API_ENDPOINTS } from '@/config/api';
 import OffersDisplay from '@/components/user/OffersDisplay';
+import UserPageLayout from '@/components/layout/UserPageLayout';
+import { StatusBadge } from '@/components/ui/Badge';
+import { EmptyState } from '@/components/ui/EmptyState';
 
 interface RequestRecord {
-  _id: string;
-  issueCategory: string;
-  issueDescription: string;
-  status: string;
-  urgency: string;
-  address: string;
-  bookingFee: number;
-  createdAt: string;
+  _id: string; issueCategory: string; issueDescription: string; status: string;
+  urgency: string; address: string; bookingFee: number; createdAt: string;
   vehicleId?: { brand?: string; vehicleModel?: string; registrationNumber?: string; vehicleType?: string };
   garageId?: { name?: string; phone?: string };
   mechanicId?: { name?: string; phone?: string };
   statusHistory?: Array<{ status: string; updatedAt: string; notes?: string }>;
 }
+
+type FilterType = 'ACTIVE' | 'COMPLETED' | 'ALL';
 
 const MyRequestsPage = () => {
   const navigate = useNavigate();
@@ -29,41 +27,35 @@ const MyRequestsPage = () => {
   const [loading, setLoading] = useState(false);
   const [loadingDetails, setLoadingDetails] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [activeFilter, setActiveFilter] = useState<'ALL' | 'ACTIVE' | 'COMPLETED'>('ACTIVE');
-  const [offers, setOffers] = useState<any[]>([]);
+  const [activeFilter, setActiveFilter] = useState<FilterType>('ACTIVE');
+  const [offers, setOffers] = useState<unknown[]>([]);
   const [loadingOffers, setLoadingOffers] = useState(false);
 
   const loadRequests = async () => {
     setLoading(true);
     setErrorMessage(null);
     try {
-      const response = await axiosInstance.get(API_ENDPOINTS.REQUESTS.MY);
-      setRequests(response.data?.data || []);
+      const res = await axiosInstance.get(API_ENDPOINTS.REQUESTS.MY);
+      const data = res.data?.data || [];
+      setRequests(data);
       if (id) {
-        const matching = (response.data?.data || []).find((item: RequestRecord) => item._id === id);
-        setSelectedRequest(matching || null);
+        const match = data.find((r: RequestRecord) => r._id === id);
+        setSelectedRequest(match || null);
       }
-    } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : 'Unable to load requests');
-    } finally {
-      setLoading(false);
-    }
+    } catch (err) { setErrorMessage(err instanceof Error ? err.message : 'Unable to load requests'); }
+    finally { setLoading(false); }
   };
 
-  useEffect(() => {
-    void loadRequests();
-  }, [id]);
+  useEffect(() => { void loadRequests(); }, [id]);
 
   const openRequest = async (request: RequestRecord) => {
     setLoadingDetails(true);
     try {
-      const response = await axiosInstance.get(API_ENDPOINTS.REQUESTS.GET(request._id));
-      const requestData = response.data?.data || request;
-      setSelectedRequest(requestData);
+      const res = await axiosInstance.get(API_ENDPOINTS.REQUESTS.GET(request._id));
+      const data = res.data?.data || request;
+      setSelectedRequest(data);
       navigate(`/user/requests/${request._id}`);
-      
-      // Load offers if status is BROADCASTED or OFFERS_RECEIVED
-      if (requestData.status === 'BROADCASTED' || requestData.status === 'OFFERS_RECEIVED') {
+      if (data.status === 'BROADCASTED' || data.status === 'OFFERS_RECEIVED') {
         await loadOffersForRequest(request._id);
       } else {
         setOffers([]);
@@ -72,180 +64,190 @@ const MyRequestsPage = () => {
       setSelectedRequest(request);
       navigate(`/user/requests/${request._id}`);
       setOffers([]);
-    } finally {
-      setLoadingDetails(false);
-    }
+    } finally { setLoadingDetails(false); }
   };
 
   const loadOffersForRequest = async (requestId: string) => {
     setLoadingOffers(true);
     try {
-      const response = await axiosInstance.get(API_ENDPOINTS.OFFERS.FOR_REQUEST(requestId));
-      setOffers(response.data?.data || []);
-    } catch (error) {
-      console.error('Failed to load offers:', error);
-      setOffers([]);
-    } finally {
-      setLoadingOffers(false);
-    }
+      const res = await axiosInstance.get(API_ENDPOINTS.OFFERS.FOR_REQUEST(requestId));
+      setOffers(res.data?.data || []);
+    } catch { setOffers([]); }
+    finally { setLoadingOffers(false); }
   };
 
   const handleOfferAccepted = async () => {
-    // Reload request and offers
     if (selectedRequest) {
       try {
-        const response = await axiosInstance.get(API_ENDPOINTS.REQUESTS.GET(selectedRequest._id));
-        setSelectedRequest(response.data?.data || selectedRequest);
+        const res = await axiosInstance.get(API_ENDPOINTS.REQUESTS.GET(selectedRequest._id));
+        setSelectedRequest(res.data?.data || selectedRequest);
         await loadOffersForRequest(selectedRequest._id);
         await loadRequests();
-      } catch (error) {
-        setErrorMessage('Failed to refresh request details');
-      }
+      } catch { setErrorMessage('Failed to refresh request details'); }
     }
   };
 
   const cancelRequest = async (requestId: string) => {
-    const confirmed = window.confirm('Cancel this request?');
-    if (!confirmed) {
-      return;
-    }
-
+    if (!window.confirm('Cancel this request?')) return;
     try {
       await axiosInstance.post(API_ENDPOINTS.REQUESTS.CANCEL(requestId));
       await loadRequests();
-    } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : 'Unable to cancel request');
-    }
+      if (selectedRequest?._id === requestId) setSelectedRequest(null);
+    } catch (err) { setErrorMessage(err instanceof Error ? err.message : 'Unable to cancel request'); }
   };
 
-  const filteredRequests = useMemo(() => requests.filter((request) => {
-    if (activeFilter === 'COMPLETED') {
-      return ['SERVICE_COMPLETED', 'PAID', 'CLOSED'].includes(request.status);
-    }
-    if (activeFilter === 'ACTIVE') {
-      return !['SERVICE_COMPLETED', 'PAID', 'CLOSED', 'CANCELLED'].includes(request.status);
-    }
+  const filteredRequests = useMemo(() => requests.filter((r) => {
+    if (activeFilter === 'COMPLETED') return ['SERVICE_COMPLETED', 'PAID', 'CLOSED'].includes(r.status);
+    if (activeFilter === 'ACTIVE') return !['SERVICE_COMPLETED', 'PAID', 'CLOSED', 'CANCELLED'].includes(r.status);
     return true;
   }), [activeFilter, requests]);
 
   return (
-    <div className="min-h-screen bg-dark-50 p-4 md:p-6 lg:p-8">
-      <div className="mx-auto max-w-7xl">
-        <div className="mb-6 flex items-center gap-3">
-          <Link to="/user/dashboard" className="rounded-full bg-white p-2 shadow-sm">
-            <ArrowLeft className="h-5 w-5 text-dark-700" />
-          </Link>
-          <div>
-            <h1 className="text-2xl font-semibold text-dark-900">My Requests</h1>
-            <p className="text-sm text-dark-600">Track your assistance requests and service history.</p>
-          </div>
+    <UserPageLayout title="My Requests" subtitle="Track your assistance requests and service history.">
+      {errorMessage && (
+        <div className="mb-5 p-3.5 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700 flex items-center justify-between gap-3">
+          {errorMessage}
+          <button onClick={() => setErrorMessage(null)} className="text-red-400 hover:text-red-600">✕</button>
         </div>
+      )}
 
-        {errorMessage && <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{errorMessage}</div>}
+      {/* Filters */}
+      <div className="flex gap-2 mb-5">
+        {(['ACTIVE', 'COMPLETED', 'ALL'] as FilterType[]).map((f) => (
+          <button key={f} onClick={() => setActiveFilter(f)}
+            className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-colors ${activeFilter === f ? 'bg-orange-500 text-white' : 'bg-white border border-slate-200 text-slate-600 hover:border-orange-300'}`}>
+            {f}
+          </button>
+        ))}
+      </div>
 
-        <div className="mb-6 flex gap-2">
-          {['ACTIVE', 'COMPLETED', 'ALL'].map((filter) => (
-            <button key={filter} onClick={() => setActiveFilter(filter as 'ACTIVE' | 'COMPLETED' | 'ALL')} className={`rounded-full px-3 py-2 text-sm ${activeFilter === filter ? 'bg-primary-500 text-white' : 'bg-white text-dark-700 border border-dark-200'}`}>
-              {filter}
-            </button>
-          ))}
+      {loading ? (
+        <div className="flex items-center justify-center py-20 text-sm text-slate-500">
+          <Loader2 className="w-5 h-5 animate-spin mr-2" /> Loading requests…
         </div>
-
-        <div className="grid gap-8 lg:grid-cols-[1.1fr_0.9fr]">
-          <div className="space-y-4">
-            {loading ? (
-              <div className="rounded-2xl border border-dark-200 bg-white p-8 text-center text-sm text-dark-600">Loading your requests...</div>
-            ) : filteredRequests.length === 0 ? (
-              <div className="rounded-2xl border border-dark-200 bg-white p-8 text-center text-sm text-dark-600">No requests found.</div>
-            ) : filteredRequests.map((request) => (
-              <motion.button key={request._id} onClick={() => void openRequest(request)} className="w-full rounded-2xl border border-dark-200 bg-white p-5 text-left shadow-sm">
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <p className="text-sm font-semibold text-dark-900">{request.issueCategory.replace(/_/g, ' ')}</p>
-                    <p className="mt-1 text-sm text-dark-600">{request.issueDescription}</p>
+      ) : (
+        <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
+          {/* Request list */}
+          <div className="lg:col-span-3 space-y-3">
+            {filteredRequests.length === 0 ? (
+              <EmptyState icon={<AlertCircle className="w-6 h-6" />} title="No requests found"
+                description={activeFilter === 'ACTIVE' ? 'No active requests. Create one from the emergency page.' : 'No requests match this filter.'} />
+            ) : filteredRequests.map((req) => (
+              <div key={req._id}
+                onClick={() => void openRequest(req)}
+                className={`card p-4 cursor-pointer transition-all ${selectedRequest?._id === req._id ? 'border-orange-300' : 'hover:border-slate-300'}`}
+                style={selectedRequest?._id === req._id ? { boxShadow: '0 4px 14px 0 rgba(249,115,22,0.15)' } : undefined}>
+                <div className="flex items-start justify-between gap-3 mb-2">
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold text-slate-900 truncate">{req.issueCategory.replace(/_/g, ' ')}</p>
+                    {req.issueDescription && <p className="text-xs text-slate-500 mt-0.5 truncate">{req.issueDescription}</p>}
                   </div>
-                  <span className="rounded-full bg-primary-50 px-3 py-1 text-xs font-medium text-primary-600">{request.status}</span>
+                  <StatusBadge status={req.status} className="flex-shrink-0" />
                 </div>
-                <div className="mt-4 flex flex-wrap gap-4 text-sm text-dark-500">
-                  <span className="flex items-center gap-1"><Car className="h-4 w-4" />{request.vehicleId?.brand || 'Vehicle'}</span>
-                  <span className="flex items-center gap-1"><MapPin className="h-4 w-4" />{request.address}</span>
-                  <span className="flex items-center gap-1"><Clock3 className="h-4 w-4" />{new Date(request.createdAt).toLocaleString()}</span>
+                <div className="flex flex-wrap gap-3 text-xs text-slate-400 mt-2">
+                  <span className="flex items-center gap-1"><Car className="w-3 h-3" />{req.vehicleId?.brand || 'Vehicle'}</span>
+                  <span className="flex items-center gap-1 max-w-[160px] truncate"><MapPin className="w-3 h-3 flex-shrink-0" />{req.address}</span>
+                  <span className="flex items-center gap-1"><Clock3 className="w-3 h-3" />{new Date(req.createdAt).toLocaleDateString('en-IN')}</span>
                 </div>
-              </motion.button>
+              </div>
             ))}
           </div>
 
-          <div className="rounded-2xl border border-dark-200 bg-white p-6 shadow-sm">
-            {loadingDetails ? <div className="text-sm text-dark-600">Loading details...</div> : selectedRequest ? (
-              <div className="space-y-6">
+          {/* Detail panel */}
+          <div className="lg:col-span-2 card p-5 self-start sticky top-20">
+            {loadingDetails ? (
+              <div className="flex items-center justify-center py-12 text-sm text-slate-500">
+                <Loader2 className="w-4 h-4 animate-spin mr-2" /> Loading…
+              </div>
+            ) : selectedRequest ? (
+              <div className="space-y-5">
                 <div>
-                  <p className="text-sm font-semibold text-primary-600">Request Details</p>
-                  <h2 className="mt-1 text-xl font-semibold text-dark-900">{selectedRequest.issueCategory.replace(/_/g, ' ')}</h2>
-                  <p className="mt-2 text-sm text-dark-600">{selectedRequest.issueDescription}</p>
+                  <StatusBadge status={selectedRequest.status} />
+                  <h2 className="text-base font-semibold text-slate-900 mt-2">{selectedRequest.issueCategory.replace(/_/g, ' ')}</h2>
+                  {selectedRequest.issueDescription && (
+                    <p className="text-sm text-slate-500 mt-1">{selectedRequest.issueDescription}</p>
+                  )}
                 </div>
 
-                <div className="rounded-xl bg-dark-50 p-4">
-                  <div className="flex items-center justify-between text-sm"><span>Status</span><span className="font-semibold text-dark-900">{selectedRequest.status}</span></div>
-                  <div className="mt-2 flex items-center justify-between text-sm"><span>Urgency</span><span className="font-semibold text-dark-900">{selectedRequest.urgency}</span></div>
-                  <div className="mt-2 flex items-center justify-between text-sm"><span>Booking Fee</span><span className="font-semibold text-dark-900">₹{selectedRequest.bookingFee}</span></div>
-                </div>
-
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2 text-sm font-semibold text-dark-900"><Car className="h-4 w-4" />Vehicle</div>
-                  <p className="text-sm text-dark-600">{selectedRequest.vehicleId?.brand} {selectedRequest.vehicleId?.vehicleModel} • {selectedRequest.vehicleId?.registrationNumber}</p>
-                </div>
-
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2 text-sm font-semibold text-dark-900"><MapPin className="h-4 w-4" />Location</div>
-                  <p className="text-sm text-dark-600">{selectedRequest.address}</p>
-                </div>
-
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2 text-sm font-semibold text-dark-900"><Wrench className="h-4 w-4" />Garage & Mechanic</div>
-                  <p className="text-sm text-dark-600">Garage: {selectedRequest.garageId?.name || 'Pending'}</p>
-                  <p className="text-sm text-dark-600">Mechanic: {selectedRequest.mechanicId?.name || 'Pending'}</p>
-                </div>
-
-                {/* Display Offers Section */}
-                {(selectedRequest.status === 'BROADCASTED' || selectedRequest.status === 'OFFERS_RECEIVED') && (
-                  <div className="space-y-3">
-                    <div className="flex items-center gap-2 text-sm font-semibold text-dark-900">
-                      <Clock3 className="h-4 w-4" />
-                      Available Offers
+                <div className="grid grid-cols-2 gap-3">
+                  {[
+                    ['Urgency', selectedRequest.urgency],
+                    ['Booking Fee', `₹${selectedRequest.bookingFee}`],
+                  ].map(([label, value]) => (
+                    <div key={label} className="p-3 bg-slate-50 rounded-lg border border-slate-100">
+                      <p className="text-2xs font-semibold text-slate-400 uppercase tracking-wide mb-1">{label}</p>
+                      <p className="text-sm font-medium text-slate-800">{value}</p>
                     </div>
+                  ))}
+                </div>
+
+                <div className="space-y-2.5 text-sm">
+                  {[
+                    { icon: <Car className="w-4 h-4 text-slate-400" />, label: 'Vehicle', value: selectedRequest.vehicleId ? `${selectedRequest.vehicleId.brand} ${selectedRequest.vehicleId.vehicleModel} · ${selectedRequest.vehicleId.registrationNumber}` : 'Not specified' },
+                    { icon: <MapPin className="w-4 h-4 text-slate-400" />, label: 'Location', value: selectedRequest.address },
+                    { icon: <Wrench className="w-4 h-4 text-slate-400" />, label: 'Garage', value: selectedRequest.garageId?.name || 'Pending assignment' },
+                  ].map(({ icon, label, value }) => (
+                    <div key={label} className="flex items-start gap-2.5">
+                      <div className="mt-0.5 flex-shrink-0">{icon}</div>
+                      <div>
+                        <p className="text-xs font-semibold text-slate-500 mb-0.5">{label}</p>
+                        <p className="text-slate-700 text-xs">{value}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Offers */}
+                {(selectedRequest.status === 'BROADCASTED' || selectedRequest.status === 'OFFERS_RECEIVED') && (
+                  <div>
+                    <p className="text-xs font-semibold text-slate-700 mb-2.5">Available Offers</p>
                     {loadingOffers ? (
-                      <div className="p-4 text-center text-sm text-dark-600">Loading offers...</div>
+                      <div className="text-xs text-slate-500 flex items-center gap-1.5">
+                        <Loader2 className="w-3 h-3 animate-spin" /> Loading offers…
+                      </div>
                     ) : (
-                      <OffersDisplay
-                        requestId={selectedRequest._id}
-                        offers={offers}
-                        onOfferAccepted={handleOfferAccepted}
-                      />
+                      <OffersDisplay requestId={selectedRequest._id} offers={offers as Parameters<typeof OffersDisplay>[0]['offers']} onOfferAccepted={handleOfferAccepted} />
                     )}
                   </div>
                 )}
 
-                <div className="space-y-3">
-                  <div className="flex items-center gap-2 text-sm font-semibold text-dark-900"><CalendarClock className="h-4 w-4" />Status Timeline</div>
-                  {selectedRequest.statusHistory?.length ? selectedRequest.statusHistory.map((item) => (
-                    <div key={`${item.status}-${item.updatedAt}`} className="rounded-lg border border-dark-200 p-3 text-sm text-dark-600">
-                      <div className="flex items-center justify-between"><span className="font-semibold text-dark-900">{item.status}</span><span>{new Date(item.updatedAt).toLocaleString()}</span></div>
-                      {item.notes ? <p className="mt-1">{item.notes}</p> : null}
+                {/* Status timeline */}
+                {(selectedRequest.statusHistory?.length ?? 0) > 0 && (
+                  <div>
+                    <p className="text-xs font-semibold text-slate-700 mb-2.5 flex items-center gap-1.5">
+                      <CalendarClock className="w-3.5 h-3.5" /> Timeline
+                    </p>
+                    <div className="space-y-2">
+                      {selectedRequest.statusHistory!.map((item) => (
+                        <div key={`${item.status}-${item.updatedAt}`}
+                          className="flex items-start gap-2.5 text-xs">
+                          <div className="w-1.5 h-1.5 rounded-full bg-orange-400 mt-1.5 flex-shrink-0" />
+                          <div>
+                            <span className="font-semibold text-slate-700">{item.status.replace(/_/g, ' ')}</span>
+                            <span className="text-slate-400 ml-2">{new Date(item.updatedAt).toLocaleDateString('en-IN')}</span>
+                            {item.notes && <p className="text-slate-500 mt-0.5">{item.notes}</p>}
+                          </div>
+                        </div>
+                      ))}
                     </div>
-                  )) : <p className="text-sm text-dark-600">No history available.</p>}
-                </div>
+                  </div>
+                )}
 
+                {/* Cancel */}
                 {!['CANCELLED', 'CLOSED', 'PAID', 'SERVICE_COMPLETED'].includes(selectedRequest.status) && (
-                  <button onClick={() => void cancelRequest(selectedRequest._id)} className="flex items-center gap-2 rounded-lg bg-red-50 px-3 py-2 text-sm font-medium text-red-700">
-                    <Trash2 className="h-4 w-4" />Cancel request
+                  <button onClick={() => void cancelRequest(selectedRequest._id)}
+                    className="flex items-center gap-1.5 text-xs font-medium text-red-600 hover:text-red-700 mt-1 transition-colors">
+                    <Trash2 className="w-3.5 h-3.5" /> Cancel this request
                   </button>
                 )}
               </div>
-            ) : <div className="text-sm text-dark-600">Select a request to view details.</div>}
+            ) : (
+              <EmptyState title="No request selected" description="Click a request from the list to see its details." />
+            )}
           </div>
         </div>
-      </div>
-    </div>
+      )}
+    </UserPageLayout>
   );
 };
 

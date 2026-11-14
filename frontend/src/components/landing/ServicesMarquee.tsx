@@ -2,74 +2,42 @@ import { motion } from 'framer-motion';
 import { useReducedMotion } from '@/utils/reducedMotion';
 import { Wrench, Battery, Truck, Fuel, Gauge, Zap, Clock } from 'lucide-react';
 
+const services = [
+  { label: 'Tyre Puncture',        icon: Wrench  },
+  { label: 'Dead Battery',          icon: Battery },
+  { label: 'Towing Service',        icon: Truck   },
+  { label: 'Fuel Delivery',         icon: Fuel    },
+  { label: 'Engine Assistance',     icon: Gauge   },
+  { label: 'Electrical Repair',     icon: Zap     },
+  { label: '24/7 Roadside Support', icon: Clock   },
+];
+
+const items = [...services, ...services, ...services];
+
 const ServicesMarquee = () => {
   const reducedMotion = useReducedMotion();
-  
-  const services = [
-    { label: 'TYRE PUNCTURE', icon: Wrench },
-    { label: 'DEAD BATTERY', icon: Battery },
-    { label: 'TOWING', icon: Truck },
-    { label: 'FUEL DELIVERY', icon: Fuel },
-    { label: 'ENGINE HELP', icon: Gauge },
-    { label: 'ELECTRICAL REPAIR', icon: Zap },
-    { label: '24/7 ROADSIDE SUPPORT', icon: Clock },
-  ];
 
   return (
-    <div className="relative py-12 bg-gradient-to-r from-dark-900 via-dark-800 to-dark-900 overflow-hidden border-y-2 border-orange-500/20">
-      {/* Background Pattern */}
-      <div className="absolute inset-0 opacity-5">
-        <div className="absolute inset-0 bg-[linear-gradient(to_right,#f97316_1px,transparent_1px),linear-gradient(to_bottom,#f97316_1px,transparent_1px)] bg-[size:4rem_4rem]" />
-      </div>
+    <div className="relative py-4 overflow-hidden select-none" style={{ background: '#111827' }} aria-hidden="true">
+      <div className="absolute top-0 left-0 right-0 h-px" style={{ background: 'linear-gradient(90deg,transparent,rgba(249,115,22,0.5),transparent)' }} />
+      <div className="absolute bottom-0 left-0 right-0 h-px" style={{ background: 'linear-gradient(90deg,transparent,rgba(249,115,22,0.3),transparent)' }} />
+
+      {/* Fade edges */}
+      <div className="absolute left-0 top-0 bottom-0 w-16 z-10 pointer-events-none" style={{ background: 'linear-gradient(to right,#111827,transparent)' }} />
+      <div className="absolute right-0 top-0 bottom-0 w-16 z-10 pointer-events-none" style={{ background: 'linear-gradient(to left,#111827,transparent)' }} />
 
       <motion.div
-        animate={reducedMotion ? {} : { x: [0, -50 * services.length] }}
-        transition={
-          reducedMotion
-            ? {}
-            : {
-                duration: 40,
-                repeat: Infinity,
-                ease: 'linear',
-              }
-        }
-        className="flex whitespace-nowrap relative"
+        animate={reducedMotion ? {} : { x: ['0%', `-${100 / 3}%`] }}
+        transition={reducedMotion ? {} : { duration: 36, repeat: Infinity, ease: 'linear' }}
+        className="flex whitespace-nowrap"
+        style={{ width: 'max-content' }}
       >
-        {/* First set */}
-        {services.map((service, index) => (
-          <div
-            key={`first-${index}`}
-            className="inline-flex items-center gap-3 mx-8 px-6 py-3 bg-gradient-to-r from-orange-500/10 to-orange-600/10 border-2 border-orange-500/30 rounded-full"
-          >
-            <service.icon className="w-6 h-6 text-orange-400" />
-            <span className="text-xl md:text-2xl font-display font-bold text-white uppercase tracking-wider">
-              {service.label}
-            </span>
-          </div>
-        ))}
-        {/* Second set for seamless loop */}
-        {services.map((service, index) => (
-          <div
-            key={`second-${index}`}
-            className="inline-flex items-center gap-3 mx-8 px-6 py-3 bg-gradient-to-r from-orange-500/10 to-orange-600/10 border-2 border-orange-500/30 rounded-full"
-          >
-            <service.icon className="w-6 h-6 text-orange-400" />
-            <span className="text-xl md:text-2xl font-display font-bold text-white uppercase tracking-wider">
-              {service.label}
-            </span>
-          </div>
-        ))}
-        {/* Third set for extra coverage */}
-        {services.map((service, index) => (
-          <div
-            key={`third-${index}`}
-            className="inline-flex items-center gap-3 mx-8 px-6 py-3 bg-gradient-to-r from-orange-500/10 to-orange-600/10 border-2 border-orange-500/30 rounded-full"
-          >
-            <service.icon className="w-6 h-6 text-orange-400" />
-            <span className="text-xl md:text-2xl font-display font-bold text-white uppercase tracking-wider">
-              {service.label}
-            </span>
-          </div>
+        {items.map((service, index) => (
+          <span key={index} className="inline-flex items-center gap-2.5 mx-8 text-xs font-semibold uppercase tracking-widest text-slate-400">
+            <service.icon className="w-3.5 h-3.5 text-orange-500 flex-shrink-0" />
+            {service.label}
+            <span className="ml-8 w-1 h-1 rounded-full bg-orange-500/40" />
+          </span>
         ))}
       </motion.div>
     </div>
