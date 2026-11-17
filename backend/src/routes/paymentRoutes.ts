@@ -7,6 +7,8 @@ import {
   getPayment,
   handleWebhook,
   getGaragePayments,
+  createDemoBookingOrder,
+  confirmDemoPayment,
 } from '../controllers/paymentController';
 import { authenticate, authorize } from '../middlewares/auth';
 import { UserRole } from '../types';
@@ -24,6 +26,10 @@ router.post('/create-booking-order', authorize(UserRole.USER), createBookingPaym
 router.post('/create-final-order', authorize(UserRole.USER), createFinalPaymentOrder);
 router.post('/verify', authorize(UserRole.USER), verifyPayment);
 router.get('/my', authorize(UserRole.USER), getMyPayments);
+
+// Demo payment routes (development only — backend enforces NODE_ENV check)
+router.post('/demo/create-order', authorize(UserRole.USER), createDemoBookingOrder);
+router.post('/demo/confirm', authorize(UserRole.USER), confirmDemoPayment);
 
 // Garage routes
 router.get('/garage', authorize(UserRole.GARAGE_OWNER), getGaragePayments);

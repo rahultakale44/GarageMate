@@ -22,6 +22,7 @@ const AdminLogin = lazy(() => import('./pages/auth/AdminLogin'));
 
 // User pages
 const UserDashboard = lazy(() => import('./pages/user/UserDashboard'));
+const BookingFlow = lazy(() => import('./pages/user/BookingFlow/index'));
 const EmergencyRequestPage = lazy(() => import('./pages/user/EmergencyRequestPage'));
 const MyRequestsPage = lazy(() => import('./pages/user/MyRequestsPage'));
 const NearbyGaragesPage = lazy(() => import('./pages/user/NearbyGaragesPage'));
@@ -88,6 +89,7 @@ function AppRoutes() {
 
             <Route element={<ProtectedRoute allowedRoles={['USER']} />}>
               <Route path="/user/dashboard" element={<UserDashboard />} />
+              <Route path="/user/book" element={<BookingFlow />} />
               <Route path="/user/emergency" element={<EmergencyRequestPage />} />
               <Route path="/user/requests" element={<MyRequestsPage />} />
               <Route path="/user/requests/:id" element={<MyRequestsPage />} />

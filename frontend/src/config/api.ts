@@ -100,6 +100,9 @@ export const API_ENDPOINTS = {
     MY: '/payments/my',
     GARAGE: '/payments/garage',
     GET: (id: string) => `/payments/${id}`,
+    // Demo mode (development only)
+    DEMO_CREATE_ORDER: '/payments/demo/create-order',
+    DEMO_CONFIRM: '/payments/demo/confirm',
   },
   
   // Reviews

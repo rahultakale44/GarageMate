@@ -351,8 +351,7 @@ export const handleWebhook = asyncHandler(async (req: AuthRequest, res: Response
 });
 
 // Get Garage Payments (for garage owners)
-export const getGaragePayments = asyncHandler(async (req: AuthRequest, res: Response) => {
-  const garage = await Garage.findOne({ owner: req.user!.userId });
+export const getGaragePayments = asyncHandler(async (req: AuthRequest, res: Response) => {  const garage = await Garage.findOne({ owner: req.user!.userId });
   
   if (!garage) {
     throw new ApiError(404, 'Garage not found');
@@ -360,7 +359,7 @@ export const getGaragePayments = asyncHandler(async (req: AuthRequest, res: Resp
 
   const payments = await Payment.find({
     garageId: garage._id,
-    status: PaymentStatus.SUCCESS,
+    status: { $in: [PaymentStatus.SUCCESS, PaymentStatus.DEMO_PAID] },
   })
     .populate('userId', 'name')
     .populate('requestId', 'issueCategory address')
@@ -373,6 +372,174 @@ export const getGaragePayments = asyncHandler(async (req: AuthRequest, res: Resp
     data: {
       payments,
       totalEarnings,
+    },
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// DEMO PAYMENT — creates + immediately verifies a simulated ₹99 booking
+// Only available in development. Backend independently enforces this.
+// ─────────────────────────────────────────────────────────────────────────────
+export const createDemoBookingOrder = asyncHandler(async (req: AuthRequest, res: Response) => {
+  if (process.env.NODE_ENV !== 'development') {
+    throw new ApiError(403, 'Demo payments are only available in development mode');
+  }
+
+  const { requestId } = req.body;
+
+  const request = await AssistanceRequest.findOne({
+    _id: requestId,
+    userId: req.user!.userId,
+  });
+
+  if (!request) {
+    throw new ApiError(404, 'Request not found');
+  }
+
+  if (request.status !== RequestStatus.PAYMENT_PENDING && request.status !== RequestStatus.DRAFT) {
+    throw new ApiError(400, 'Payment already completed or request invalid');
+  }
+
+  // Prevent duplicate demo payments
+  const existingPayment = await Payment.findOne({
+    requestId,
+    status: { $in: [PaymentStatus.SUCCESS, PaymentStatus.DEMO_PAID, PaymentStatus.PENDING] },
+  });
+
+  if (existingPayment) {
+    throw new ApiError(400, 'Payment already exists for this request');
+  }
+
+  // Set to PAYMENT_PENDING if still in DRAFT
+  if (request.status === RequestStatus.DRAFT) {
+    request.status = RequestStatus.PAYMENT_PENDING;
+    request.statusHistory.push({
+      status: RequestStatus.PAYMENT_PENDING,
+      updatedBy: req.user!.userId as any,
+      updatedAt: new Date(),
+      notes: 'Demo payment initiated',
+    });
+    await request.save();
+  }
+
+  const demoOrderId = `demo_order_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+
+  const payment = await Payment.create({
+    userId: req.user!.userId,
+    requestId,
+    garageId: request.garageId,
+    type: PaymentType.DEMO_BOOKING_FEE,
+    amount: request.bookingFee,
+    razorpayOrderId: demoOrderId,
+    status: PaymentStatus.CREATED,
+    metadata: { isDemoPayment: true, demoOrderId },
+  });
+
+  res.json({
+    success: true,
+    data: {
+      orderId: demoOrderId,
+      amount: request.bookingFee * 100,
+      currency: 'INR',
+      paymentId: payment._id,
+      isDemoMode: true,
+    },
+  });
+});
+
+export const confirmDemoPayment = asyncHandler(async (req: AuthRequest, res: Response) => {
+  if (process.env.NODE_ENV !== 'development') {
+    throw new ApiError(403, 'Demo payments are only available in development mode');
+  }
+
+  const { paymentDbId } = req.body;
+
+  const payment = await Payment.findOne({
+    _id: paymentDbId,
+    userId: req.user!.userId,
+    type: PaymentType.DEMO_BOOKING_FEE,
+  });
+
+  if (!payment) {
+    throw new ApiError(404, 'Demo payment not found');
+  }
+
+  if (payment.status === PaymentStatus.DEMO_PAID) {
+    throw new ApiError(400, 'Demo payment already confirmed');
+  }
+
+  if (!payment.metadata?.isDemoPayment) {
+    throw new ApiError(400, 'Not a valid demo payment');
+  }
+
+  payment.status = PaymentStatus.DEMO_PAID;
+  payment.razorpayPaymentId = `demo_pay_${Date.now()}`;
+  await payment.save();
+
+  const request = await AssistanceRequest.findById(payment.requestId);
+  if (!request) {
+    throw new ApiError(404, 'Request not found');
+  }
+
+  if (request.garageId) {
+    // Direct garage assignment
+    request.status = RequestStatus.GARAGE_SELECTED;
+    request.statusHistory.push({
+      status: RequestStatus.GARAGE_SELECTED,
+      updatedBy: req.user!.userId as any,
+      updatedAt: new Date(),
+      notes: 'Demo booking fee confirmed — direct garage request',
+    });
+    await request.save();
+
+    // Notify selected garage owner
+    const garage = await Garage.findById(request.garageId).populate('owner');
+    if (garage && garage.owner) {
+      await createNotification({
+        recipient: (garage.owner as any)._id || garage.owner,
+        recipientRole: UserRole.GARAGE_OWNER,
+        title: '🔔 New Assistance Request',
+        message: `New demo booking received — ${request.issueCategory.replace(/_/g, ' ')}`,
+        type: NotificationType.REQUEST_CREATED,
+        redirectUrl: `/garage/requests/${request._id}`,
+      });
+
+      // Emit real-time socket event
+      const { emitToUser } = await import('../sockets');
+      emitToUser(String((garage.owner as any)._id || garage.owner), 'request:new', {
+        requestId: request._id,
+        issueCategory: request.issueCategory,
+        address: request.address,
+      });
+    }
+  } else {
+    // Broadcast
+    request.status = RequestStatus.BROADCASTED;
+    request.statusHistory.push({
+      status: RequestStatus.BROADCASTED,
+      updatedBy: req.user!.userId as any,
+      updatedAt: new Date(),
+      notes: 'Demo booking fee confirmed — broadcasting',
+    });
+    await request.save();
+  }
+
+  // Notify user of payment success
+  const { emitToUser } = await import('../sockets');
+  emitToUser(req.user!.userId, 'payment:success', {
+    requestId: request._id,
+    amount: payment.amount,
+    isDemoPayment: true,
+  });
+
+  res.json({
+    success: true,
+    message: 'Demo payment confirmed. Booking created successfully.',
+    data: {
+      payment,
+      request: await AssistanceRequest.findById(request._id)
+        .populate('garageId', 'name phone address')
+        .populate('vehicleId'),
     },
   });
 });

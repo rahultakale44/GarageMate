@@ -49,6 +49,8 @@ export const COMPLAINT_CATEGORIES = [
 ];
 
 export const DEFAULT_BOOKING_FEE = 99;
+export const DEMO_BOOKING_FEE = 99;         // kept same for realism
+export const DEMO_MODE = process.env.NODE_ENV === 'development';
 export const PLATFORM_FEE_PERCENTAGE = 10;
 export const MAX_SEARCH_RADIUS_KM = 50;
 export const DEFAULT_SEARCH_RADIUS_KM = 10;

@@ -46,13 +46,15 @@ export enum PaymentStatus {
   PENDING = 'PENDING',
   SUCCESS = 'SUCCESS',
   FAILED = 'FAILED',
-  REFUNDED = 'REFUNDED'
+  REFUNDED = 'REFUNDED',
+  DEMO_PAID = 'DEMO_PAID',
 }
 
 export enum PaymentType {
   BOOKING_FEE = 'BOOKING_FEE',
   FINAL_SERVICE_PAYMENT = 'FINAL_SERVICE_PAYMENT',
-  REFUND = 'REFUND'
+  REFUND = 'REFUND',
+  DEMO_BOOKING_FEE = 'DEMO_BOOKING_FEE',
 }
 
 export enum QuotationStatus {
