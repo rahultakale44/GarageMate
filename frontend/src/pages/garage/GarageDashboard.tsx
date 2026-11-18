@@ -2,9 +2,10 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { io } from 'socket.io-client';
 import {
-  Store, Bell, Clock, DollarSign, CheckCircle, AlertCircle, Users, Loader2,
+  Store, Clock, DollarSign, CheckCircle, AlertCircle, Users, Loader2,
   Plus, Trash2, Pencil, ShieldCheck, Wrench, ToggleLeft, ToggleRight, Send,
 } from 'lucide-react';
+import NotificationBell from '@/components/shared/NotificationBell';
 import { useAuth } from '@/context/AuthContext';
 import axiosInstance from '@/lib/axios';
 import { API_ENDPOINTS, SOCKET_URL } from '@/config/api';
@@ -199,10 +200,7 @@ const GarageDashboard = () => {
         {savingAvailability ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : profile?.isAvailable ? <ToggleRight className="w-3.5 h-3.5" /> : <ToggleLeft className="w-3.5 h-3.5" />}
         {profile?.isAvailable ? 'Available' : 'Offline'}
       </button>
-      <button className="relative p-2 rounded-lg text-slate-500 hover:bg-slate-100 hover:text-slate-700 transition-colors">
-        <Bell className="w-5 h-5" />
-        {newRequestAlert && <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 bg-red-500 rounded-full animate-pulse" />}
-      </button>
+      <NotificationBell />
     </div>
   );
 
@@ -210,7 +208,7 @@ const GarageDashboard = () => {
     <DashboardShell navItems={navItems} headerActions={headerActions}>
       {/* Welcome */}
       <div className="mb-6">
-        <h1 className="text-xl font-semibold text-slate-900">
+        <h1 className="text-xl font-bold text-white">
           {profile ? profile.name : `Welcome, ${user?.name?.split(' ')[0] ?? 'Owner'}`}
         </h1>
         <p className="text-sm text-slate-500 mt-0.5">

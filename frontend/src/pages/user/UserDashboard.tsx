@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import {
-  AlertCircle, Car, MapPin, Clock, Star, Bell, Plus,
+  AlertCircle, Car, MapPin, Clock, Star, Plus,
   Pencil, Trash2, Loader2, Navigation, Zap,
 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
@@ -11,6 +11,7 @@ import { DashboardShell, type NavItem } from '@/components/layout/DashboardShell
 import { StatusBadge } from '@/components/ui/Badge';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { Modal } from '@/components/ui/Modal';
+import NotificationBell from '@/components/shared/NotificationBell';
 import UserSubscriptionCard from '@/components/subscription/UserSubscriptionCard';
 import { getMySubscription } from '@/services/subscriptionService';
 import type { MySubscriptionResponse } from '@/types/subscription';
@@ -49,7 +50,7 @@ const fuelTypeOptions = ['Petrol', 'Diesel', 'CNG', 'Electric', 'Hybrid'];
 const navItems: NavItem[] = [
   { icon: AlertCircle, label: 'Dashboard',     path: '/user/dashboard' },
   { icon: MapPin,      label: 'Find Garages',  path: '/user/nearby-garages' },
-  { icon: Zap,         label: 'Emergency',     path: '/user/emergency' },
+  { icon: Zap,         label: 'Emergency',     path: '/user/book' },
   { icon: Clock,       label: 'My Requests',   path: '/user/requests' },
   { icon: Car,         label: 'My Vehicles',   path: '/user/vehicles' },
   { icon: Star,        label: 'My Reviews',    path: '/user/reviews' },
@@ -192,14 +193,7 @@ const UserDashboard = () => {
     } catch (err) { setErrorMessage(err instanceof Error ? err.message : 'Unable to delete vehicle'); }
   };
 
-  const headerActions = (
-    <button className="relative p-2 rounded-lg transition-colors" style={{ color: '#94a3b8' }}
-      onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.08)'; (e.currentTarget as HTMLElement).style.color = '#fff'; }}
-      onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = 'transparent'; (e.currentTarget as HTMLElement).style.color = '#94a3b8'; }}>
-      <Bell className="w-5 h-5" />
-      <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 bg-orange-500 rounded-full" />
-    </button>
-  );
+  const headerActions = <NotificationBell />;
 
   return (
     <DashboardShell navItems={navItems} headerActions={headerActions}>
@@ -221,7 +215,7 @@ const UserDashboard = () => {
           <h2 className="text-lg font-bold text-white">Get emergency roadside assistance</h2>
         </div>
         <Link
-          to={vehicles.length === 0 ? '#' : '/user/emergency'}
+          to={vehicles.length === 0 ? '#' : '/user/book'}
           onClick={(e) => { if (vehicles.length === 0) { e.preventDefault(); openCreateModal(); } }}
           className="flex-shrink-0 inline-flex items-center gap-2 px-5 py-2.5 bg-white text-red-600 text-sm font-bold rounded-lg hover:bg-red-50 transition-colors"
           style={{ boxShadow: '0 2px 10px rgba(0,0,0,0.3)' }}

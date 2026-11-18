@@ -6,7 +6,7 @@ import { DashboardShell, type NavItem } from '@/components/layout/DashboardShell
 const userNavItems: NavItem[] = [
   { icon: AlertCircle, label: 'Dashboard',    path: '/user/dashboard' },
   { icon: MapPin,      label: 'Find Garages', path: '/user/nearby-garages' },
-  { icon: Zap,         label: 'Emergency',    path: '/user/emergency' },
+  { icon: Zap,         label: 'Emergency',    path: '/user/book' },
   { icon: Clock,       label: 'My Requests',  path: '/user/requests' },
   { icon: Car,         label: 'My Vehicles',  path: '/user/vehicles' },
   { icon: Star,        label: 'My Reviews',   path: '/user/reviews' },

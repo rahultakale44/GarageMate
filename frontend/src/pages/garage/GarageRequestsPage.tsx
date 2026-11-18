@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { Car, Clock3, MapPin, UserCheck, Send, AlertCircle, Loader2, CheckCircle, XCircle } from 'lucide-react';
+import { Car, Clock3, MapPin, UserCheck, Send, AlertCircle, Loader2, CheckCircle, XCircle, IndianRupee } from 'lucide-react';
 import axiosInstance from '@/lib/axios';
 import { API_ENDPOINTS } from '@/config/api';
 import SubmitOfferModal from '@/components/garage/SubmitOfferModal';
@@ -8,6 +8,7 @@ import { DashboardShell, type NavItem } from '@/components/layout/DashboardShell
 import { StatusBadge } from '@/components/ui/Badge';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { Store, Wrench, Users, ShieldCheck } from 'lucide-react';
+import NotificationBell from '@/components/shared/NotificationBell';
 
 interface RequestRecord {
   _id: string; issueCategory: string; issueDescription: string; status: string;
@@ -153,14 +154,15 @@ const GarageRequestsPage = () => {
   const availableMechanics = useMemo(() => mechanics.filter((m) => m.status === 'AVAILABLE'), [mechanics]);
 
   return (
-    <DashboardShell navItems={navItems}>
+    <DashboardShell navItems={navItems} headerActions={<NotificationBell />}>
       <div className="mb-6">
-        <h1 className="text-xl font-semibold text-slate-900">Incoming Requests</h1>
+        <h1 className="text-xl font-bold text-white">Incoming Requests</h1>
         <p className="text-sm text-slate-500 mt-0.5">Accept, reject, assign mechanics, and advance service status.</p>
       </div>
 
       {errorMessage && (
-        <div className="mb-4 p-3.5 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700 flex items-center justify-between gap-3">
+        <div className="mb-4 p-3.5 rounded-lg text-sm text-red-400 flex items-center justify-between gap-3"
+          style={{ background: 'rgba(239,68,68,0.10)', border: '1px solid rgba(239,68,68,0.20)' }}>
           {errorMessage}
           <button onClick={() => setErrorMessage(null)} className="text-red-400 hover:text-red-600">✕</button>
         </div>
@@ -220,7 +222,7 @@ const GarageRequestsPage = () => {
               <div className="space-y-5">
                 <div>
                   <StatusBadge status={selectedRequest.status} />
-                  <h2 className="text-base font-semibold text-slate-900 mt-2">
+                  <h2 className="text-base font-semibold text-white mt-2">
                     {selectedRequest.issueCategory.replace(/_/g, ' ')}
                   </h2>
                   {selectedRequest.issueDescription && (
@@ -229,15 +231,18 @@ const GarageRequestsPage = () => {
                 </div>
 
                 <div className="grid grid-cols-2 gap-3">
-                  {[
-                    ['Urgency', selectedRequest.urgency],
-                    ['Booking Fee', `₹${selectedRequest.bookingFee}`],
-                  ].map(([label, value]) => (
-                    <div key={label} className="p-3 bg-slate-50 rounded-lg border border-slate-100">
-                      <p className="text-2xs font-semibold text-slate-400 uppercase tracking-wide mb-1">{label}</p>
-                      <p className="text-sm font-medium text-slate-800">{value}</p>
+                  <div className="p-3 rounded-lg" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}>
+                    <p className="text-2xs font-semibold text-slate-500 uppercase tracking-wide mb-1">Urgency</p>
+                    <p className="text-sm font-semibold text-white">{selectedRequest.urgency}</p>
+                  </div>
+                  <div className="p-3 rounded-lg" style={{ background: 'rgba(34,197,94,0.08)', border: '1px solid rgba(34,197,94,0.20)' }}>
+                    <p className="text-2xs font-semibold text-slate-500 uppercase tracking-wide mb-1">Booking Fee</p>
+                    <div className="flex items-center gap-1.5">
+                      <IndianRupee className="w-3.5 h-3.5 text-green-400" />
+                      <p className="text-sm font-bold text-green-300">{selectedRequest.bookingFee}</p>
+                      <span className="text-2xs font-bold text-green-400 ml-1 px-1.5 py-0.5 rounded-full" style={{ background: 'rgba(34,197,94,0.15)' }}>PAID</span>
                     </div>
-                  ))}
+                  </div>
                 </div>
 
                 <div className="space-y-3 text-sm">

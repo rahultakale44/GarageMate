@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Car, MapPin, Clock3, Trash2, Wrench, CalendarClock, Loader2, AlertCircle } from 'lucide-react';
+import { io } from 'socket.io-client';
 import axiosInstance from '@/lib/axios';
-import { API_ENDPOINTS } from '@/config/api';
+import { API_ENDPOINTS, SOCKET_URL } from '@/config/api';
 import OffersDisplay from '@/components/user/OffersDisplay';
 import UserPageLayout from '@/components/layout/UserPageLayout';
 import { StatusBadge } from '@/components/ui/Badge';
@@ -30,6 +31,29 @@ const MyRequestsPage = () => {
   const [activeFilter, setActiveFilter] = useState<FilterType>('ACTIVE');
   const [offers, setOffers] = useState<unknown[]>([]);
   const [loadingOffers, setLoadingOffers] = useState(false);
+
+  // ── Real-time status updates via Socket.IO ──────────────────────────────
+  useEffect(() => {
+    const token = localStorage.getItem('accessToken');
+    if (!token || !selectedRequest) return;
+
+    const socket = io(SOCKET_URL, { auth: { token }, transports: ['websocket', 'polling'] });
+    socket.emit('join:request', selectedRequest._id);
+
+    socket.on('request:status-changed', (data: { requestId: string; status: string }) => {
+      if (data.requestId === selectedRequest._id) {
+        // Reload full request details to get latest statusHistory
+        axiosInstance.get(API_ENDPOINTS.REQUESTS.GET(selectedRequest._id))
+          .then(res => setSelectedRequest(res.data?.data || null))
+          .catch(() => { /* silent */ });
+      }
+    });
+
+    return () => {
+      socket.emit('leave:request', selectedRequest._id);
+      socket.disconnect();
+    };
+  }, [selectedRequest?._id]);
 
   const loadRequests = async () => {
     setLoading(true);
@@ -139,7 +163,7 @@ const MyRequestsPage = () => {
                 style={selectedRequest?._id === req._id ? { boxShadow: '0 4px 14px 0 rgba(249,115,22,0.15)' } : undefined}>
                 <div className="flex items-start justify-between gap-3 mb-2">
                   <div className="min-w-0">
-                    <p className="text-sm font-semibold text-slate-900 truncate">{req.issueCategory.replace(/_/g, ' ')}</p>
+                    <p className="text-sm font-semibold text-white truncate">{req.issueCategory.replace(/_/g, ' ')}</p>
                     {req.issueDescription && <p className="text-xs text-slate-500 mt-0.5 truncate">{req.issueDescription}</p>}
                   </div>
                   <StatusBadge status={req.status} className="flex-shrink-0" />
@@ -163,22 +187,30 @@ const MyRequestsPage = () => {
               <div className="space-y-5">
                 <div>
                   <StatusBadge status={selectedRequest.status} />
-                  <h2 className="text-base font-semibold text-slate-900 mt-2">{selectedRequest.issueCategory.replace(/_/g, ' ')}</h2>
+                  <h2 className="text-base font-semibold text-white mt-2">{selectedRequest.issueCategory.replace(/_/g, ' ')}</h2>
                   {selectedRequest.issueDescription && (
                     <p className="text-sm text-slate-500 mt-1">{selectedRequest.issueDescription}</p>
                   )}
                 </div>
 
                 <div className="grid grid-cols-2 gap-3">
-                  {[
-                    ['Urgency', selectedRequest.urgency],
-                    ['Booking Fee', `₹${selectedRequest.bookingFee}`],
-                  ].map(([label, value]) => (
-                    <div key={label} className="p-3 bg-slate-50 rounded-lg border border-slate-100">
-                      <p className="text-2xs font-semibold text-slate-400 uppercase tracking-wide mb-1">{label}</p>
-                      <p className="text-sm font-medium text-slate-800">{value}</p>
+                  {/* Urgency */}
+                  <div className="p-3 rounded-lg" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}>
+                    <p className="text-2xs font-semibold text-slate-500 uppercase tracking-wide mb-1">Urgency</p>
+                    <p className="text-sm font-semibold text-white">{selectedRequest.urgency}</p>
+                  </div>
+                  {/* Booking Fee + payment status */}
+                  <div className="p-3 rounded-lg" style={{ background: 'rgba(34,197,94,0.08)', border: '1px solid rgba(34,197,94,0.20)' }}>
+                    <p className="text-2xs font-semibold text-slate-500 uppercase tracking-wide mb-1">Booking Fee</p>
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-sm font-bold text-white">₹{selectedRequest.bookingFee}</span>
+                      {!['DRAFT', 'PAYMENT_PENDING', 'CANCELLED'].includes(selectedRequest.status) && (
+                        <span className="text-2xs font-bold text-green-400 px-1.5 py-0.5 rounded-full" style={{ background: 'rgba(34,197,94,0.15)' }}>
+                          PAID
+                        </span>
+                      )}
                     </div>
-                  ))}
+                  </div>
                 </div>
 
                 <div className="space-y-2.5 text-sm">
@@ -191,7 +223,7 @@ const MyRequestsPage = () => {
                       <div className="mt-0.5 flex-shrink-0">{icon}</div>
                       <div>
                         <p className="text-xs font-semibold text-slate-500 mb-0.5">{label}</p>
-                        <p className="text-slate-700 text-xs">{value}</p>
+                        <p className="text-slate-300 text-xs">{value}</p>
                       </div>
                     </div>
                   ))}
@@ -200,7 +232,7 @@ const MyRequestsPage = () => {
                 {/* Offers */}
                 {(selectedRequest.status === 'BROADCASTED' || selectedRequest.status === 'OFFERS_RECEIVED') && (
                   <div>
-                    <p className="text-xs font-semibold text-slate-700 mb-2.5">Available Offers</p>
+                    <p className="text-xs font-semibold text-slate-400 mb-2.5">Available Offers</p>
                     {loadingOffers ? (
                       <div className="text-xs text-slate-500 flex items-center gap-1.5">
                         <Loader2 className="w-3 h-3 animate-spin" /> Loading offers…
@@ -214,7 +246,7 @@ const MyRequestsPage = () => {
                 {/* Status timeline */}
                 {(selectedRequest.statusHistory?.length ?? 0) > 0 && (
                   <div>
-                    <p className="text-xs font-semibold text-slate-700 mb-2.5 flex items-center gap-1.5">
+                    <p className="text-xs font-semibold text-slate-400 mb-2.5 flex items-center gap-1.5">
                       <CalendarClock className="w-3.5 h-3.5" /> Timeline
                     </p>
                     <div className="space-y-2">
