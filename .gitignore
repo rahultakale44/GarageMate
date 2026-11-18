@@ -49,6 +49,9 @@ uploads/
 # Local documentation (do not push to GitHub)
 Documentation/
 
+# Root-level markdown files — all docs stay local only
+/*.md
+
 # Test artifacts
 test_reqid.txt
 test-request.json
