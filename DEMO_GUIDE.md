@@ -1,177 +1,213 @@
 # GarageMate — End-to-End Demo Guide
 
-## Overview
-This guide walks through the complete roadside assistance booking workflow
-across all three roles: **User → Garage Owner → Admin**.
-
----
-
-## Setup
-
-### 1. Seed demo data (run once)
+## Quick Start
 
 ```bash
-# From the backend directory
-npm run seed:demo     # Creates demo User, Garage Owner, Admin + Demo Garage (Pune FC Road)
-npm run seed:loni     # Creates 8 Loni Kalbhor area garages + showcase user with 2 vehicles
-npm run seed:garages  # Creates 10 Pune-area garages (optional, extra coverage)
+# Backend
+cd backend && npm run dev        # Runs on http://localhost:5000
+
+# Frontend
+cd frontend && npm run dev       # Runs on http://localhost:5173
+
+# Seed (run once per fresh DB)
+cd backend
+npm run seed:demo                # Admin + Demo User + Demo Garage (Pune FC Road)
+npm run seed:garages             # 10 Pune-area garages
+npm run seed:loni                # 8 Loni Kalbhor garages + showcase user
 ```
-
-> All seed scripts are **idempotent** — safe to run multiple times.
-> They only target `NODE_ENV=development` databases.
-
-### 2. Frontend environment (.env)
-
-Create `frontend/.env` based on `.env.example`:
-
-```env
-VITE_API_BASE_URL=http://localhost:5000/api
-VITE_SOCKET_URL=http://localhost:5000
-VITE_DEMO_MODE=true
-```
-
-`VITE_DEMO_MODE=true` enables the simulated ₹99 payment experience.
-The backend independently validates `NODE_ENV=development` — the frontend flag alone
-is never trusted for payment simulation.
 
 ---
 
 ## Demo Credentials
 
-### Loni Kalbhor Showcase (primary demo)
+### Primary Demo Accounts
 
-| Role | Email | Password |
-|---|---|---|
-| User | `demo.loni.user@garagemate.com` | `Demo@12345` |
-| Garage Owner | `owner.loni1@garagemate.com` | `Demo@12345` |
-| Admin | `demo.admin@garagemate.com` | `Demo@12345` |
+| Role | Email | Password | Notes |
+|---|---|---|---|
+| User | `demo.loni.user@garagemate.com` | `Demo@12345` | Loni showcase user, 2 vehicles |
+| User | `demo.user@garagemate.com` | `Demo@12345` | Original demo user |
+| Admin | `demo.admin@garagemate.com` | `Demo@12345` | Full platform access |
 
-### Original Demo Accounts
+### City Wheels Garage (Primary Demo Garage)
 
-| Role | Email | Password |
-|---|---|---|
-| User | `demo.user@garagemate.com` | `Demo@12345` |
-| Garage Owner | `demo.garage@garagemate.com` | `Demo@12345` |
-| Admin | `demo.admin@garagemate.com` | `Demo@12345` |
-
-### All Loni Garage Owners
-
-| Garage | Email |
+| Field | Value |
 |---|---|
-| GarageMate Demo Garage — Loni Kalbhor | `owner.loni1@garagemate.com` |
-| Loni Auto Care Demo | `owner.loni2@garagemate.com` |
-| Highway Tyre & Battery Demo | `owner.loni3@garagemate.com` |
-| Express Roadside Assistance Demo | `owner.loni4@garagemate.com` |
-| Kalbhor Motor Works Demo | `owner.loni5@garagemate.com` |
-| Hadapsar Roadside Demo | `owner.loni6@garagemate.com` |
-| Wagholi Auto Service Demo | `owner.loni7@garagemate.com` |
-| Uruli Kanchan Auto Care Demo | `owner.loni8@garagemate.com` |
+| Email | `demo.city@garagemate.com` |
+| Password | `DemoGarage@123` |
+| Garage | City Wheels Garage |
+| Location | Near Phoenix Mall, Viman Nagar, Pune |
+| Coordinates | 18.5679, 73.9143 |
+| Services | Car Repair, Engine Repair, Brake Repair, AC Repair, Oil Change |
 
-All Loni garage owner passwords: `Demo@12345`
+---
+
+## Complete Garage Owner → Garage Mapping
+
+| Garage Name | Owner Email | Password |
+|---|---|---|
+| Loni Auto Care | `demo.loni@garagemate.com` | `DemoGarage@123` |
+| Highway Tyre Assistance | `demo.highway@garagemate.com` | `DemoGarage@123` |
+| Sai Battery and Electricals | `demo.sai@garagemate.com` | `DemoGarage@123` |
+| Kadam Motors (Kharadi) | `demo.kadam@garagemate.com` | `DemoGarage@123` |
+| Pune Road Rescue | `demo.rescue@garagemate.com` | `DemoGarage@123` |
+| Shree Ganesh Auto Garage | `demo.ganesh@garagemate.com` | `DemoGarage@123` |
+| **City Wheels Garage ⭐** | `demo.city@garagemate.com` | `DemoGarage@123` |
+| Express Car Care | `demo.express@garagemate.com` | `DemoGarage@123` |
+| Reliable Bike Assistance | `demo.reliable@garagemate.com` | `DemoGarage@123` |
+| East Pune Auto Service | `demo.east@garagemate.com` | `DemoGarage@123` |
+| Demo Auto Care Center | `demo.garage@garagemate.com` | `Demo@12345` |
+| GarageMate Demo Garage — Loni Kalbhor ⭐ | `owner.loni1@garagemate.com` | `Demo@12345` |
+| Loni Auto Care Demo | `owner.loni2@garagemate.com` | `Demo@12345` |
+| Highway Tyre & Battery Demo | `owner.loni3@garagemate.com` | `Demo@12345` |
+| Express Roadside Assistance Demo | `owner.loni4@garagemate.com` | `Demo@12345` |
+| Kalbhor Motor Works Demo | `owner.loni5@garagemate.com` | `Demo@12345` |
+| Hadapsar Roadside Demo | `owner.loni6@garagemate.com` | `Demo@12345` |
+| Wagholi Auto Service Demo | `owner.loni7@garagemate.com` | `Demo@12345` |
+| Uruli Kanchan Auto Care Demo | `owner.loni8@garagemate.com` | `Demo@12345` |
 
 ---
 
 ## End-to-End Demo Workflow
 
-### Step 1 — User Books Assistance
+### STEP 1 — Customer Books City Wheels Garage
 
-1. Log in as `demo.loni.user@garagemate.com`
-2. Click **Emergency** in the left sidebar (or **Get Help Now** on dashboard)
-3. Click **Use My Current Location** — OR — select **Enter Location Manually**
-   - For Loni Kalbhor demo: Lat `18.4723`, Lng `73.9385`
-4. See nearby garages appear from the seeded data
-5. Select **GarageMate Demo Garage — Loni Kalbhor**
-6. Choose vehicle: **Mahindra Thar** (or Maruti Swift)
-7. Choose issue: **Tyre Puncture**
-8. Write description: *"Front left tyre punctured near Loni Kalbhor Phata"*
-9. Click **Review Booking Summary**
-10. Check the confirmation box → Click **Proceed to Pay ₹99**
-11. Click **⚡ Simulate Demo Payment — ₹99** (clearly labelled as simulation)
-12. See the success screen: **"Your Assistance Request Has Been Sent!"**
-13. Note the **Booking ID** shown on screen
-14. Click **Track My Assistance** to see the live status
+1. Login as `demo.loni.user@garagemate.com`
+2. Click **Emergency** in sidebar → opens `/user/book` (6-step booking flow)
+3. **Location** — click "Use My Current Location" or enter manually:
+   - Lat: `18.5679` Lng: `73.9143` Address: `Viman Nagar, Pune`
+4. **Garages** — 19+ garages shown. Select **City Wheels Garage**
+5. **Details** — pick Mahindra Thar, choose Tyre Puncture, write description
+6. **Summary** — review ₹99 fee + "repair charges separate" note, check confirm box
+7. **Payment** — click **⚡ Simulate Demo Payment — ₹99** (clearly labelled)
+8. **Confirmation** — see "Your Assistance Request Has Been Sent!"
+9. Click **Track My Assistance** to open the tracking page
 
-### Step 2 — Garage Owner Receives & Processes
+### STEP 2 — City Wheels Garage Owner Receives
 
-1. Log out as User
-2. Log in as `owner.loni1@garagemate.com`
-3. Navigate to **Requests** in the sidebar
-4. See the incoming request with **GARAGE_SELECTED** status and **₹99 PAID** badge
-5. Click **Accept** to accept the request (status → GARAGE_ACCEPTED)
-6. If mechanics are configured: assign a mechanic (status → MECHANIC_ASSIGNED)
-7. Click **Mechanic on Way** (status → MECHANIC_ON_THE_WAY)
+1. Login as `demo.city@garagemate.com` (password: `DemoGarage@123`)
+2. Navigate to **Requests** in sidebar
+3. See **"NEW"** badge on incoming request tab
+4. Click on the request to open detail panel
+5. See: customer name, Mahindra Thar, Tyre Puncture, ₹99 PAID badge
+6. Click **Accept Request** → confirmation modal shows booking details
+7. Click **Accept Request** in modal → "Request accepted! Customer has been notified."
+8. Click **Set ETA** → pick 20 minutes → "ETA set, customer notified"
 
-### Step 3 — Admin Monitors
+### STEP 3 — Customer Sees Acceptance (Live Tracking)
 
-1. Log out as Garage Owner
-2. Log in as `demo.admin@garagemate.com`
-3. Go to **Admin Dashboard → Verifications** or **Admin → Requests**
-4. See the same booking record with:
-   - Customer name
-   - Selected garage
-   - Payment amount ₹99
-   - Current status
+1. Customer's tracking page (or `/user/requests/<id>`) shows:
+   - Green banner: "✅ Your request has been accepted!"
+   - "City Wheels Garage has accepted your request. Help is on the way!"
+   - "⏱️ Mechanic arriving in ~20 minutes"
+   - Status badge: GARAGE_ACCEPTED
+
+### STEP 4 — Garage Owner Advances Status
+
+Click buttons in order:
+1. **Mark Mechanic Assigned** (or assign from mechanics list)
+2. **On The Way** → customer sees "Mechanic is on the way!"
+3. **Mechanic Arrived** → customer sees "Mechanic has arrived"
+4. **Start Inspection** → inspection started
+5. **Start Service** → service in progress
+6. **Mark Service Completed** → completion modal → Confirm
+
+### STEP 5 — Customer Sees Completion
+
+Customer tracking shows:
+- "✅ Service Completed!"
+- Full timeline: all 10 status history entries
+- Booking ID, ₹99 PAID, City Wheels Garage contact
+
+### STEP 6 — Admin Monitors
+
+1. Login as `demo.admin@garagemate.com`
+2. Go to **Requests** → see SERVICE_COMPLETED filter
+3. See: customer, City Wheels Garage, ₹99 PAID, 10-entry status history
+
+---
+
+## Loni Kalbhor Demo (Alternative)
+
+For the Loni area demo, use `demo.loni.user@garagemate.com` and select
+**GarageMate Demo Garage — Loni Kalbhor** (owner: `owner.loni1@garagemate.com`).
+
+Coordinates for Loni: Lat `18.4723` Lng `73.9385`
 
 ---
 
 ## Payment Modes
 
-| Mode | How to use | Real money? |
+| Mode | Config | Real money? |
 |---|---|---|
-| Razorpay Test | Configure `RAZORPAY_KEY_ID` in backend `.env` with Rzp test key | No (test mode) |
-| Demo Simulation | `VITE_DEMO_MODE=true` + `NODE_ENV=development` | Never |
+| **Demo Simulation** ⭐ | `VITE_DEMO_MODE=true` (default in dev) | Never |
+| Razorpay Test | Add test keys to `backend/.env` | No (test mode) |
 
-### Razorpay Test Credentials (when configured)
-Use Razorpay test card: `4111 1111 1111 1111`, any future expiry, any CVV.
-Or use UPI test: `success@razorpay`
+Demo payments store `type: DEMO_BOOKING_FEE` and `status: DEMO_PAID`.
+Never confused with real `BOOKING_FEE` / `SUCCESS` records.
 
----
-
-## Booking Flow Route
-
-The new multi-step booking flow is at: `/user/book`
-
-The old emergency form is preserved at: `/user/emergency`
-
-The sidebar Emergency button now goes to `/user/book`.
+### Razorpay Test Card (when keys configured)
+Card: `4111 1111 1111 1111` | Expiry: any future | CVV: any
+UPI test: `success@razorpay`
 
 ---
 
-## Socket.IO Real-Time Events
+## New Features (Phase 3–8)
 
-The app uses Socket.IO for live updates. Events:
+### Garage Owner Request Page (`/garage/requests`)
+- **NEW badge** on incoming requests (GARAGE_SELECTED status)
+- **New request alert banner** (animates in when socket event fires)
+- **Tab navigation**: New Requests / Active Jobs / Completed
+- **Accept modal** — shows customer + vehicle + ₹99 PAID before confirming
+- **ETA modal** — pick 5/10/15/20/30/45/60 min or custom
+- **Status buttons** — appear dynamically based on current status
+- **Service completion modal** — confirmation before marking complete
+- **Status timeline** — last 6 entries, most recent highlighted orange
+- **Real-time updates** via Socket.IO
 
-| Event | Who receives |
+### Customer Tracking (`/user/requests`)
+- Green banner when garage accepts: "Your request has been accepted!"
+- ETA display: "⏱️ Mechanic arriving in ~20 minutes"
+- Completion banner when service done
+- Payment status: ₹99 PAID badge
+- Real-time Socket.IO updates on status change + ETA update
+
+### Socket.IO Events
+| Event | Sent to |
 |---|---|
-| `request:new` | Garage owner (new assignment) |
-| `payment:success` | User (payment confirmed) |
-| `request:status-changed` | User + Admin (status update) |
-
-The **NotificationBell** component in the header shows an unread count badge
-and subscribes to these events automatically when the user is authenticated.
+| `request:new` | Garage owner |
+| `request:status-changed` | Customer + Admin |
+| `request:eta-updated` | Customer |
 
 ---
 
-## Loni Kalbhor Demo Area Coordinates
+## Status Lifecycle
 
-| Garage | Latitude | Longitude |
-|---|---|---|
-| GarageMate Demo Garage | 18.4723 | 73.9385 |
-| Loni Auto Care Demo | 18.4698 | 73.9412 |
-| Highway Tyre & Battery | 18.4680 | 73.9460 |
-| Express Roadside Demo | 18.4760 | 73.9330 |
-| Kalbhor Motor Works | 18.4745 | 73.9400 |
-| Hadapsar Roadside | 18.5018 | 73.9278 |
-| Wagholi Auto Service | 18.5790 | 73.9822 |
-| Uruli Kanchan Auto Care | 18.4467 | 74.0073 |
+```
+DRAFT → PAYMENT_PENDING → GARAGE_SELECTED → GARAGE_ACCEPTED
+     → MECHANIC_ASSIGNED → MECHANIC_ON_THE_WAY → MECHANIC_ARRIVED
+     → INSPECTION_STARTED → SERVICE_IN_PROGRESS → SERVICE_COMPLETED
+```
+
+New: `INSPECTION_STARTED` can now transition directly to `SERVICE_IN_PROGRESS`
+(skipping quotation step for demo/emergency use cases).
 
 ---
 
 ## Security Notes
 
-- Demo payment endpoints are **backend-gated** by `NODE_ENV !== 'production'`
-- Frontend `VITE_DEMO_MODE` flag is never trusted alone for payment confirmation
-- Demo payments are stored with `type: DEMO_BOOKING_FEE` and `status: DEMO_PAID`
-  — clearly distinguishable from real `BOOKING_FEE` / `SUCCESS` records
-- No real money is charged in demo mode
-- Seed scripts refuse to run in production (`process.env.NODE_ENV === 'production'` exits)
+- Demo payment endpoints: backend enforces `NODE_ENV !== 'production'`
+- Garage isolation: `GARAGE_SELECTED`+ requests require `garageId == owning garage`
+- ETA endpoint: validates garage ownership before updating
+- Status updates: validates garage ownership and transition rules
+- Cross-user payment: `userId` check prevents garage owners confirming user payments
+- Rate limiter: 10 auth attempts per 15 min (correct security behavior)
+
+---
+
+## Known Limitations
+
+1. **Razorpay live**: Not tested — credentials not configured. Architecture is correct.
+2. **Socket.IO browser testing**: Server emits verified in code + logs. Full push-to-browser requires live browser session.
+3. **Mechanic tracking map**: Shows static garage location. Live GPS tracking not implemented.
+4. **SMS notifications**: Not implemented — notifications stored in DB and sent via Socket.IO only.
+5. **Quotation flow**: Simplified for demo — `INSPECTION_STARTED → SERVICE_IN_PROGRESS` allowed directly.

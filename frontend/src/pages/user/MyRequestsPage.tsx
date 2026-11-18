@@ -12,8 +12,10 @@ import { EmptyState } from '@/components/ui/EmptyState';
 interface RequestRecord {
   _id: string; issueCategory: string; issueDescription: string; status: string;
   urgency: string; address: string; bookingFee: number; createdAt: string;
+  estimatedArrivalMinutes?: number;
+  etaSetAt?: string;
   vehicleId?: { brand?: string; vehicleModel?: string; registrationNumber?: string; vehicleType?: string };
-  garageId?: { name?: string; phone?: string };
+  garageId?: { _id?: string; name?: string; phone?: string };
   mechanicId?: { name?: string; phone?: string };
   statusHistory?: Array<{ status: string; updatedAt: string; notes?: string }>;
 }
@@ -46,6 +48,13 @@ const MyRequestsPage = () => {
         axiosInstance.get(API_ENDPOINTS.REQUESTS.GET(selectedRequest._id))
           .then(res => setSelectedRequest(res.data?.data || null))
           .catch(() => { /* silent */ });
+      }
+    });
+
+    socket.on('request:eta-updated', (data: { requestId: string; estimatedArrivalMinutes: number }) => {
+      if (data.requestId === selectedRequest._id) {
+        setSelectedRequest(prev => prev ? { ...prev, estimatedArrivalMinutes: data.estimatedArrivalMinutes } : prev);
+        void loadRequests();
       }
     });
 
@@ -185,6 +194,33 @@ const MyRequestsPage = () => {
               </div>
             ) : selectedRequest ? (
               <div className="space-y-5">
+                {/* Garage accepted banner */}
+                {['GARAGE_ACCEPTED','MECHANIC_ASSIGNED','MECHANIC_ON_THE_WAY','MECHANIC_ARRIVED','INSPECTION_STARTED','SERVICE_IN_PROGRESS','SERVICE_COMPLETED','PAID','CLOSED'].includes(selectedRequest.status) && selectedRequest.garageId?.name && (
+                  <div className="p-3.5 rounded-xl"
+                    style={{ background: 'rgba(34,197,94,0.08)', border: '1px solid rgba(34,197,94,0.20)' }}>
+                    <p className="text-xs font-bold text-green-400 mb-1">
+                      {selectedRequest.status === 'SERVICE_COMPLETED' || selectedRequest.status === 'PAID'
+                        ? '✅ Service Completed!'
+                        : '✅ Your request has been accepted!'}
+                    </p>
+                    <p className="text-xs text-slate-400">
+                      {selectedRequest.status === 'SERVICE_COMPLETED' || selectedRequest.status === 'PAID'
+                        ? `${selectedRequest.garageId.name} has completed your roadside assistance service.`
+                        : `${selectedRequest.garageId.name} accepted your request. Help is on the way!`}
+                    </p>
+                    {selectedRequest.garageId.phone && (
+                      <p className="text-xs text-slate-400 mt-1">
+                        📞 {selectedRequest.garageId.phone}
+                      </p>
+                    )}
+                    {selectedRequest.estimatedArrivalMinutes && !['SERVICE_COMPLETED','PAID','CLOSED'].includes(selectedRequest.status) && (
+                      <p className="text-xs text-orange-400 mt-1 font-semibold">
+                        ⏱️ Mechanic arriving in ~{selectedRequest.estimatedArrivalMinutes} minutes
+                      </p>
+                    )}
+                  </div>
+                )}
+
                 <div>
                   <StatusBadge status={selectedRequest.status} />
                   <h2 className="text-base font-semibold text-white mt-2">{selectedRequest.issueCategory.replace(/_/g, ' ')}</h2>
@@ -218,6 +254,8 @@ const MyRequestsPage = () => {
                     { icon: <Car className="w-4 h-4 text-slate-400" />, label: 'Vehicle', value: selectedRequest.vehicleId ? `${selectedRequest.vehicleId.brand} ${selectedRequest.vehicleId.vehicleModel} · ${selectedRequest.vehicleId.registrationNumber}` : 'Not specified' },
                     { icon: <MapPin className="w-4 h-4 text-slate-400" />, label: 'Location', value: selectedRequest.address },
                     { icon: <Wrench className="w-4 h-4 text-slate-400" />, label: 'Garage', value: selectedRequest.garageId?.name || 'Pending assignment' },
+                    ...(selectedRequest.garageId?.phone ? [{ icon: <Wrench className="w-4 h-4 text-slate-400" />, label: 'Garage Phone', value: selectedRequest.garageId.phone }] : []),
+                    ...(selectedRequest.estimatedArrivalMinutes ? [{ icon: <Wrench className="w-4 h-4 text-orange-400" />, label: 'ETA', value: `${selectedRequest.estimatedArrivalMinutes} minutes` }] : []),
                   ].map(({ icon, label, value }) => (
                     <div key={label} className="flex items-start gap-2.5">
                       <div className="mt-0.5 flex-shrink-0">{icon}</div>

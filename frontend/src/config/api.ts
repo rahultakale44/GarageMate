@@ -67,6 +67,7 @@ export const API_ENDPOINTS = {
     REJECT: (id: string) => `/requests/${id}/reject`,
     ASSIGN_MECHANIC: (id: string) => `/requests/${id}/assign-mechanic`,
     UPDATE_STATUS: (id: string) => `/requests/${id}/status`,
+    UPDATE_ETA: (id: string) => `/requests/${id}/eta`,
     GENERATE_OTP: (id: string) => `/requests/${id}/generate-otp`,
     VERIFY_OTP: (id: string) => `/requests/${id}/verify-otp`,
     CANCEL: (id: string) => `/requests/${id}/cancel`,

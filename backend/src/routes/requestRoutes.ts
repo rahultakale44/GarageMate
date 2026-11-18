@@ -8,6 +8,7 @@ import {
   rejectRequest,
   assignMechanic,
   updateStatus,
+  updateETA,
   generateCompletionOTP,
   verifyCompletionOTP,
   cancelRequest,
@@ -30,6 +31,7 @@ router.get('/garage', authorize(UserRole.GARAGE_OWNER), getGarageRequests);
 router.post('/:id/accept', authorize(UserRole.GARAGE_OWNER), acceptRequest);
 router.post('/:id/reject', authorize(UserRole.GARAGE_OWNER), rejectRequest);
 router.post('/:id/assign-mechanic', authorize(UserRole.GARAGE_OWNER), assignMechanic);
+router.patch('/:id/eta', authorize(UserRole.GARAGE_OWNER), updateETA);
 router.post('/:id/generate-otp', authorize(UserRole.GARAGE_OWNER), generateCompletionOTP);
 router.patch('/:id/status', authorize(UserRole.GARAGE_OWNER, UserRole.ADMIN), updateStatus);
 

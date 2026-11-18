@@ -10,6 +10,7 @@ import { createRequestSchema, assignMechanicSchema, verifyCompletionOTPSchema } 
 import { DEFAULT_BOOKING_FEE } from '../constants';
 import { generateOTP } from '../utils/helpers';
 import { createNotification } from '../services/notificationService';
+import { emitToUser, emitToRequest, emitToRole } from '../sockets';
 
 const isValidTransition = (currentStatus: RequestStatus, nextStatus: RequestStatus) => {
   const allowedTransitions: Record<RequestStatus, RequestStatus[]> = {
@@ -23,7 +24,7 @@ const isValidTransition = (currentStatus: RequestStatus, nextStatus: RequestStat
     [RequestStatus.MECHANIC_ASSIGNED]: [RequestStatus.MECHANIC_ON_THE_WAY, RequestStatus.CANCELLED],
     [RequestStatus.MECHANIC_ON_THE_WAY]: [RequestStatus.MECHANIC_ARRIVED, RequestStatus.CANCELLED],
     [RequestStatus.MECHANIC_ARRIVED]: [RequestStatus.INSPECTION_STARTED, RequestStatus.CANCELLED],
-    [RequestStatus.INSPECTION_STARTED]: [RequestStatus.QUOTATION_SENT, RequestStatus.CANCELLED],
+    [RequestStatus.INSPECTION_STARTED]: [RequestStatus.QUOTATION_SENT, RequestStatus.SERVICE_IN_PROGRESS, RequestStatus.CANCELLED],
     [RequestStatus.QUOTATION_SENT]: [RequestStatus.QUOTATION_APPROVED, RequestStatus.CANCELLED],
     [RequestStatus.QUOTATION_APPROVED]: [RequestStatus.SERVICE_IN_PROGRESS, RequestStatus.CANCELLED],
     [RequestStatus.SERVICE_IN_PROGRESS]: [RequestStatus.SERVICE_COMPLETED, RequestStatus.CANCELLED],
@@ -290,6 +291,24 @@ export const acceptRequest = asyncHandler(async (req: AuthRequest, res: Response
     redirectUrl: `/user/requests/${request._id}`,
   });
 
+  // Real-time Socket.IO emit to user and admin
+  emitToUser(String(request.userId), 'request:status-changed', {
+    requestId: request._id,
+    status: RequestStatus.GARAGE_ACCEPTED,
+    garageName: garage.name,
+    garagePhone: garage.phone,
+    message: `${garage.name} has accepted your request!`,
+  });
+  emitToRole('ADMIN', 'request:status-changed', {
+    requestId: request._id,
+    status: RequestStatus.GARAGE_ACCEPTED,
+    garageName: garage.name,
+  });
+  emitToRequest(String(request._id), 'request:status-changed', {
+    requestId: request._id,
+    status: RequestStatus.GARAGE_ACCEPTED,
+  });
+
   res.json({
     success: true,
     message: 'Request accepted successfully',
@@ -443,10 +462,106 @@ export const updateStatus = asyncHandler(async (req: AuthRequest, res: Response)
 
   await request.save();
 
+  // ── Real-time Socket.IO emit on every status change ──────────────────────
+  const statusMessages: Partial<Record<RequestStatus, string>> = {
+    [RequestStatus.MECHANIC_ON_THE_WAY]: 'Your mechanic is on the way!',
+    [RequestStatus.MECHANIC_ARRIVED]: 'Your mechanic has arrived at your location.',
+    [RequestStatus.INSPECTION_STARTED]: 'Inspection has started.',
+    [RequestStatus.SERVICE_IN_PROGRESS]: 'Service is in progress.',
+    [RequestStatus.SERVICE_COMPLETED]: 'Your roadside assistance service has been completed!',
+  };
+  const userMsg = statusMessages[nextStatus];
+  if (userMsg) {
+    // Notify the customer
+    await createNotification({
+      recipient: request.userId,
+      recipientRole: UserRole.USER,
+      title: userMsg,
+      message: userMsg,
+      type: nextStatus === RequestStatus.SERVICE_COMPLETED
+        ? NotificationType.SERVICE_COMPLETED
+        : NotificationType.MECHANIC_ARRIVING,
+      redirectUrl: `/user/requests/${request._id}`,
+    });
+  }
+
+  emitToUser(String(request.userId), 'request:status-changed', {
+    requestId: request._id,
+    status: nextStatus,
+    message: userMsg || `Status updated to ${nextStatus}`,
+  });
+  emitToRequest(String(request._id), 'request:status-changed', {
+    requestId: request._id,
+    status: nextStatus,
+  });
+  emitToRole('ADMIN', 'request:status-changed', {
+    requestId: request._id,
+    status: nextStatus,
+    garageId: request.garageId,
+  });
+
   res.json({
     success: true,
     message: 'Status updated successfully',
     data: request,
+  });
+});
+
+// Update ETA (Estimated Arrival Time)
+export const updateETA = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const { estimatedArrivalMinutes } = req.body;
+
+  if (!estimatedArrivalMinutes || typeof estimatedArrivalMinutes !== 'number' || estimatedArrivalMinutes < 1 || estimatedArrivalMinutes > 180) {
+    throw new ApiError(400, 'Valid ETA (1–180 minutes) is required');
+  }
+
+  const garage = await Garage.findOne({ owner: req.user!.userId });
+  if (!garage) throw new ApiError(404, 'Garage not found');
+
+  const request = await AssistanceRequest.findOne({
+    _id: req.params.id,
+    garageId: garage._id,
+  });
+  if (!request) throw new ApiError(404, 'Request not found or not assigned to your garage');
+
+  const allowedStatuses = [
+    RequestStatus.GARAGE_ACCEPTED,
+    RequestStatus.MECHANIC_ASSIGNED,
+    RequestStatus.MECHANIC_ON_THE_WAY,
+  ];
+  if (!allowedStatuses.includes(request.status as RequestStatus)) {
+    throw new ApiError(400, 'ETA can only be set after accepting and before mechanic arrives');
+  }
+
+  request.estimatedArrivalMinutes = estimatedArrivalMinutes;
+  request.etaSetAt = new Date();
+  await request.save();
+
+  const msg = `Your mechanic is on the way! Expected arrival: ${estimatedArrivalMinutes} minutes.`;
+
+  await createNotification({
+    recipient: request.userId,
+    recipientRole: UserRole.USER,
+    title: 'ETA Updated',
+    message: msg,
+    type: NotificationType.MECHANIC_ARRIVING,
+    redirectUrl: `/user/requests/${request._id}`,
+  });
+
+  emitToUser(String(request.userId), 'request:eta-updated', {
+    requestId: request._id,
+    estimatedArrivalMinutes,
+    message: msg,
+  });
+  emitToRequest(String(request._id), 'request:eta-updated', {
+    requestId: request._id,
+    estimatedArrivalMinutes,
+  });
+
+  res.json({
+    success: true,
+    message: 'ETA updated successfully',
+    data: { estimatedArrivalMinutes, etaSetAt: request.etaSetAt },
   });
 });
 

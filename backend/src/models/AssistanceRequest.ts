@@ -24,6 +24,8 @@ export interface IAssistanceRequestDocument extends Document {
   bookingFee: number;
   estimatedCost?: number;
   finalCost?: number;
+  estimatedArrivalMinutes?: number;
+  etaSetAt?: Date;
   completionOTP?: string;
   otpExpiresAt?: Date;
   createdAt: Date;
@@ -112,6 +114,8 @@ const assistanceRequestSchema = new Schema<IAssistanceRequestDocument>(
     },
     estimatedCost: Number,
     finalCost: Number,
+    estimatedArrivalMinutes: { type: Number },
+    etaSetAt: { type: Date },
     completionOTP: String,
     otpExpiresAt: Date,
   },
