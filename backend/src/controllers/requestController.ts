@@ -155,6 +155,54 @@ export const getGarageRequests = asyncHandler(async (req: AuthRequest, res: Resp
     };
   }
 
+  // ── Isolation fix ──────────────────────────────────────────────────────────
+  // For directly-assigned statuses (garageId already set), only return
+  // requests that belong to THIS garage. This prevents Garage B from seeing
+  // Garage A's private accepted requests via the geo-radius query.
+  //
+  // For broadcast statuses (BROADCASTED, OFFERS_RECEIVED) where no garage has
+  // been assigned yet, fall through to the geospatial query so nearby garages
+  // can discover and bid on them.
+  const directStatuses = [
+    RequestStatus.GARAGE_SELECTED,
+    RequestStatus.GARAGE_ACCEPTED,
+    RequestStatus.MECHANIC_ASSIGNED,
+    RequestStatus.MECHANIC_ON_THE_WAY,
+    RequestStatus.MECHANIC_ARRIVED,
+    RequestStatus.INSPECTION_STARTED,
+    RequestStatus.QUOTATION_SENT,
+    RequestStatus.QUOTATION_APPROVED,
+    RequestStatus.SERVICE_IN_PROGRESS,
+  ];
+
+  const requestedStatuses: RequestStatus[] = status
+    ? [status as RequestStatus]
+    : filters.status.$in as RequestStatus[];
+
+  const needsDirectScope = requestedStatuses.some(s => directStatuses.includes(s));
+  const needsBroadcastScope = requestedStatuses.some(s =>
+    [RequestStatus.BROADCASTED, RequestStatus.OFFERS_RECEIVED,
+     RequestStatus.PAYMENT_PENDING, RequestStatus.SEARCHING_GARAGES].includes(s)
+  );
+
+  if (needsDirectScope && !needsBroadcastScope) {
+    // All requested statuses are direct-assignment — scope strictly to this garage
+    filters.garageId = garage._id;
+  } else if (needsDirectScope && needsBroadcastScope) {
+    // Mixed: use $or — either (direct status AND this garageId) OR (broadcast status)
+    const broadcastStatuses = requestedStatuses.filter(s =>
+      [RequestStatus.BROADCASTED, RequestStatus.OFFERS_RECEIVED,
+       RequestStatus.PAYMENT_PENDING, RequestStatus.SEARCHING_GARAGES].includes(s)
+    );
+    const ownedStatuses = requestedStatuses.filter(s => directStatuses.includes(s));
+    filters.$or = [
+      { status: { $in: ownedStatuses }, garageId: garage._id },
+      { status: { $in: broadcastStatuses } },
+    ];
+    delete filters.status; // replaced by $or
+  }
+  // If only broadcast statuses (no direct), no garageId filter needed — geo handles it
+
   // Find requests within service radius
   filters.location = {
     $near: {
