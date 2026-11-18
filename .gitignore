@@ -46,6 +46,9 @@ temp/
 # Uploads
 uploads/
 
-# Build
-*.tsbuildinfo
-.cache/
+# Local documentation (do not push to GitHub)
+Documentation/
+
+# Test artifacts
+test_reqid.txt
+test-request.json
