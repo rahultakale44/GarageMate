@@ -1,6 +1,7 @@
 package com.garagemate.api.domain.garage;
 
 import com.garagemate.api.domain.garage.dto.*;
+import com.garagemate.api.domain.garage.cleanup.CloudinaryCleanupService;
 import com.garagemate.api.domain.garage.pricing.GarageServicePricingRepository;
 import com.garagemate.api.domain.user.User;
 import com.garagemate.api.domain.user.UserRepository;
@@ -40,6 +41,7 @@ class GarageServiceTest {
     @Mock private UserRepository userRepository;
     @Mock private CloudinaryService cloudinaryService;
     @Mock private GarageServicePricingRepository pricingRepository;
+    @Mock private CloudinaryCleanupService cloudinaryCleanupService;
 
     @InjectMocks private GarageService garageService;
 
@@ -248,15 +250,74 @@ class GarageServiceTest {
             verify(pricingRepository, never()).deleteByGarageId(any());
             verify(pricingRepository, never()).save(any());
         }
+
+        @Test @DisplayName("empty map clears all existing pricing entries")
+        void emptyMapClearsPricing() {
+            given(garageRepository.findByOwnerId(1L)).willReturn(Optional.of(approvedGarage));
+            given(garageRepository.save(any(Garage.class))).willAnswer(inv -> inv.getArgument(0));
+
+            UpdateGarageRequest req = new UpdateGarageRequest(
+                    null, null, null, null, null, null,
+                    null, null, null, null, null, null, null, null, null, null, null,
+                    new LinkedHashMap<>());   // empty map — clear all pricing
+
+            garageService.updateGarage(1L, req);
+
+            verify(pricingRepository).deleteByGarageId(approvedGarage.getId());
+            verify(pricingRepository, never()).save(any());  // nothing to insert
+        }
+
+        @Test @DisplayName("negative prices are skipped by service-layer guard")
+        void negativeSkipped() {
+            given(garageRepository.findByOwnerId(1L)).willReturn(Optional.of(approvedGarage));
+            given(garageRepository.save(any(Garage.class))).willAnswer(inv -> inv.getArgument(0));
+
+            Map<String, BigDecimal> pricing = new LinkedHashMap<>();
+            pricing.put("Car Repair",  new BigDecimal("500.00"));
+            pricing.put("Bad Service", new BigDecimal("-50.00")); // negative — skipped
+
+            UpdateGarageRequest req = new UpdateGarageRequest(
+                    null, null, null, null, null, null,
+                    null, null, null, null, null, null, null, null, null, null, null,
+                    pricing);
+
+            garageService.updateGarage(1L, req);
+
+            // Only the non-negative entry was saved
+            verify(pricingRepository, times(1)).save(any());
+        }
+
+        @Test @DisplayName("rollback: if pricingRepository.save throws, exception propagates for TX rollback")
+        void exceptionPropagatesForRollback() {
+            given(garageRepository.findByOwnerId(1L)).willReturn(Optional.of(approvedGarage));
+            doThrow(new RuntimeException("UK constraint violation"))
+                    .when(pricingRepository).save(any());
+
+            Map<String, BigDecimal> pricing = new LinkedHashMap<>();
+            pricing.put("Car Repair", new BigDecimal("500.00"));
+
+            UpdateGarageRequest req = new UpdateGarageRequest(
+                    null, null, null, null, null, null,
+                    null, null, null, null, null, null, null, null, null, null, null,
+                    pricing);
+
+            // Exception propagates — @Transactional on updateGarage rolls back both
+            // the garageRepository.save AND pricingRepository operations
+            assertThatThrownBy(() -> garageService.updateGarage(1L, req))
+                    .isInstanceOf(RuntimeException.class)
+                    .hasMessageContaining("UK constraint");
+
+            verify(pricingRepository).deleteByGarageId(approvedGarage.getId());
+        }
     }
 
     // ── Cloudinary safety ─────────────────────────────────────────────────────
 
-    @Nested @DisplayName("Cloudinary failure handling")
+    @Nested @DisplayName("Cloudinary failure handling (outbox pattern)")
     class CloudinaryFailure {
 
-        @Test @DisplayName("deleteImage: DB record removed even if Cloudinary delete fails")
-        void dbRemovedOnCloudinaryDeleteFailure() {
+        @Test @DisplayName("deleteImage: removes DB record and registers outbox row atomically")
+        void registersOutboxRow() {
             GarageImage img = GarageImage.builder()
                     .id(1L).garage(approvedGarage)
                     .url("https://res.cloudinary.com/x/img.jpg")
@@ -265,16 +326,25 @@ class GarageServiceTest {
 
             given(garageRepository.findByOwnerId(1L)).willReturn(Optional.of(approvedGarage));
             given(garageRepository.save(any())).willAnswer(inv -> inv.getArgument(0));
-            // Cloudinary throws — should NOT propagate
-            doThrow(new RuntimeException("Cloudinary down"))
-                    .when(cloudinaryService).delete("garagemate/garages/img");
+            // registerPendingDeletion needs to do nothing (it's @Transactional MANDATORY —
+            // in a mock context we just verify it was called)
 
-            // Should complete without throwing
-            assertThatCode(() -> garageService.deleteImage(1L, "garagemate/garages/img"))
-                    .doesNotThrowAnyException();
+            garageService.deleteImage(1L, "garagemate/garages/img");
 
-            // DB save was still called
+            // DB record removed
             verify(garageRepository).save(any());
+            // Public ID preserved in outbox — Cloudinary NOT called directly
+            verify(cloudinaryService, never()).delete(any());
+        }
+
+        @Test @DisplayName("deleteImage: returns 404 for unknown publicId")
+        void notFoundPublicId() {
+            approvedGarage.getImages().clear();  // no images
+            given(garageRepository.findByOwnerId(1L)).willReturn(Optional.of(approvedGarage));
+
+            assertThatThrownBy(() -> garageService.deleteImage(1L, "nonexistent"))
+                    .isInstanceOf(com.garagemate.api.exception.ApiException.class)
+                    .hasMessageContaining("Image not found");
         }
     }
 

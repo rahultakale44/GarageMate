@@ -50,6 +50,7 @@ public class GarageService {
     private final UserRepository userRepository;
     private final CloudinaryService cloudinaryService;
     private final GarageServicePricingRepository pricingRepository;
+    private final com.garagemate.api.domain.garage.cleanup.CloudinaryCleanupService cloudinaryCleanupService;
 
     @Value("${app.demo-mode:false}")
     private boolean demoMode;
@@ -304,7 +305,20 @@ public class GarageService {
     }
 
     /**
-     * Delete a specific image by publicId — called when owner removes an image.
+     * Deletes an image from the garage using the transactional outbox pattern.
+     *
+     * Within the transaction:
+     *   1. Remove the GarageImage record from the Garage (DB change)
+     *   2. Insert a PendingCloudinaryDeletion row (preserves the publicId for retry)
+     *   Both writes are atomic — if the transaction rolls back, both revert.
+     *
+     * After the transaction commits (async):
+     *   3. Attempt Cloudinary deletion via CloudinaryCleanupService
+     *   4. On success: outbox row marked DONE
+     *   5. On failure: outbox row stays PENDING for the retry scheduler
+     *
+     * This guarantees the publicId is never permanently lost, even if
+     * Cloudinary is unavailable at the time of deletion.
      */
     @Transactional
     public void deleteImage(Long ownerId, String publicId) {
@@ -318,18 +332,21 @@ public class GarageService {
             throw ApiException.notFound("Image not found");
         }
 
-        // Persist DB change first; only delete Cloudinary asset after DB commit
+        // Step 1+2 (atomic): remove DB image record + insert outbox row
         garageRepository.save(garage);
+        cloudinaryCleanupService.registerPendingDeletion(publicId, garage.getId());
 
-        // Best-effort Cloudinary deletion — log failure but don't rollback DB
-        // (asset can be cleaned up later via Cloudinary console or reconciliation job)
-        try {
-            cloudinaryService.delete(publicId);
-        } catch (Exception e) {
-            log.warn("Cloudinary deletion failed for publicId={} (DB record removed): {}",
-                    publicId, e.getMessage());
-        }
-        log.info("Deleted image publicId={} from garageId={}", publicId, garage.getId());
+        log.info("DB image removed, Cloudinary deletion queued: publicId={} garageId={}",
+                publicId, garage.getId());
+        // Step 3 runs after this method returns (async, after TX commit)
+    }
+
+    /**
+     * Called by controller after deleteImage() transaction has committed.
+     * Triggers the async Cloudinary deletion attempt.
+     */
+    public void triggerCloudinaryDeletion(String publicId) {
+        cloudinaryCleanupService.attemptDeletion(publicId);
     }
 
     // ── Package-visible: used by AuthService on garage registration ───────────

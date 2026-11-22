@@ -8,6 +8,7 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 @SpringBootApplication
 @EnableCaching
 @EnableScheduling
+@org.springframework.scheduling.annotation.EnableAsync
 public class GarageMateApplication {
 
     public static void main(String[] args) {

@@ -12,8 +12,12 @@ public interface GarageServicePricingRepository extends JpaRepository<GarageServ
 
     List<GarageServicePricing> findByGarageId(Long garageId);
 
-    /** Replace all pricing entries for a garage atomically. */
-    @Modifying
+    /**
+     * Replace all pricing entries for a garage atomically.
+     * clearAutomatically = true flushes the first-level cache after the bulk DELETE
+     * so subsequent reads in the same transaction see the correct state.
+     */
+    @Modifying(clearAutomatically = true)
     @Query("DELETE FROM GarageServicePricing p WHERE p.garage.id = :garageId")
     void deleteByGarageId(Long garageId);
 }
