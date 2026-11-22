@@ -33,3 +33,6 @@ spring-pid
 *.pid
 build_*.txt
 build.log
+
+# Build log artifacts
+*.txt

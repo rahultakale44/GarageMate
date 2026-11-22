@@ -33,11 +33,10 @@ public class AuthController {
     private final EmailService emailService;
 
     /**
-     * POST /api/auth/register
-     * Body: { name, email, password, phone? }
-     * Returns: { accessToken, refreshToken, user }
+     * POST /api/auth/user/register  (frontend: AUTH.USER_REGISTER)
+     * Also accepts /api/auth/register for backward compatibility.
      */
-    @PostMapping("/register")
+    @PostMapping({"/user/register", "/register"})
     public ResponseEntity<ApiResponse<AuthResponse>> register(
             @Valid @RequestBody RegisterUserRequest req) {
 
@@ -47,11 +46,10 @@ public class AuthController {
     }
 
     /**
-     * POST /api/auth/register-garage
-     * Body: { name, email, password, phone? }
-     * Returns: { accessToken, refreshToken, user } with role=GARAGE_OWNER
+     * POST /api/auth/garage/register  (frontend: AUTH.GARAGE_REGISTER)
+     * Also accepts /api/auth/register-garage for backward compatibility.
      */
-    @PostMapping("/register-garage")
+    @PostMapping({"/garage/register", "/register-garage"})
     public ResponseEntity<ApiResponse<AuthResponse>> registerGarage(
             @Valid @RequestBody RegisterGarageRequest req) {
 
@@ -74,13 +72,10 @@ public class AuthController {
     }
 
     /**
-     * POST /api/auth/refresh-token
-     * Body: { refreshToken }
-     * Returns: { accessToken, refreshToken, user }
-     *
-     * Implements rotation + reuse detection — see AuthService.refreshToken()
+     * POST /api/auth/refresh  (frontend: AUTH.REFRESH = '/auth/refresh')
+     * Also accepts /api/auth/refresh-token for backward compatibility.
      */
-    @PostMapping("/refresh-token")
+    @PostMapping({"/refresh", "/refresh-token"})
     public ResponseEntity<ApiResponse<AuthResponse>> refreshToken(
             @Valid @RequestBody RefreshTokenRequest req) {
 

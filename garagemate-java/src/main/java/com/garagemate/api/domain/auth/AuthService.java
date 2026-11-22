@@ -1,6 +1,7 @@
 package com.garagemate.api.domain.auth;
 
 import com.garagemate.api.domain.auth.dto.*;
+import com.garagemate.api.domain.garage.GarageService;
 import com.garagemate.api.domain.user.User;
 import com.garagemate.api.domain.user.UserRepository;
 import com.garagemate.api.domain.user.UserRole;
@@ -41,6 +42,7 @@ public class AuthService {
     private final RefreshTokenRepository refreshTokenRepository;
     private final JwtTokenProvider jwtTokenProvider;
     private final PasswordEncoder passwordEncoder;  // BCrypt strength=10 (configured in SecurityConfig)
+    private final GarageService garageService;
 
     // ─── Register ─────────────────────────────────────────────────────────────
 
@@ -80,6 +82,10 @@ public class AuthService {
                 .build();
 
         userRepository.save(user);
+
+        // Create garage record (status = PENDING, requires admin approval)
+        garageService.createGarageForOwner(user, req);
+
         log.info("New GARAGE_OWNER registered: {}", user.getEmail());
         return issueTokenPair(user);
     }

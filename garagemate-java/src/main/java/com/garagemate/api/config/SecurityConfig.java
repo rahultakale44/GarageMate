@@ -52,10 +52,13 @@ public class SecurityConfig {
                 // ── Public endpoints (mirror Node.js route config) ──────────
                 .requestMatchers(
                     "/api/auth/user/register",
+                    "/api/auth/register",
                     "/api/auth/garage/register",
+                    "/api/auth/register-garage",
                     "/api/auth/login",
                     "/api/auth/google",
                     "/api/auth/refresh",
+                    "/api/auth/refresh-token",
                     "/api/auth/logout",
                     "/api/auth/forgot-password",
                     "/api/auth/reset-password"
