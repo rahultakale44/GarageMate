@@ -25,13 +25,17 @@ public class GlobalExceptionHandler {
                 .body(ApiResponse.error(ex.getMessage()));
     }
 
-    /** Jakarta Bean Validation failures — mirrors Zod validation responses */
+    /**
+     * Jakarta Bean Validation failures — 422 Unprocessable Entity.
+     * This is the semantically correct code for well-formed requests that fail
+     * business validation (matches frontend expectation).
+     */
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<ApiResponse<Void>> handleValidation(MethodArgumentNotValidException ex) {
         String message = ex.getBindingResult().getFieldErrors().stream()
                 .map(FieldError::getDefaultMessage)
                 .collect(Collectors.joining("; "));
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+        return ResponseEntity.status(HttpStatus.UNPROCESSABLE_ENTITY)
                 .body(ApiResponse.error(message));
     }
 
