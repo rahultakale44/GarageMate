@@ -1,0 +1,60 @@
+#!/bin/sh
+# Maven Wrapper Script
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements. See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership. The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License. You may obtain a copy of the License at
+#
+#   https://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied. See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
+set -e
+
+# Resolve the wrapper JAR
+MAVEN_PROJECTBASEDIR="${MAVEN_BASEDIR:-}"
+if [ -z "$MAVEN_PROJECTBASEDIR" ]; then
+  MAVEN_PROJECTBASEDIR="$(pwd)"
+fi
+WRAPPER_PROPERTIES="$MAVEN_PROJECTBASEDIR/.mvn/wrapper/maven-wrapper.properties"
+
+# Download distribution
+DISTRIBUTION_URL=$(grep "distributionUrl" "$WRAPPER_PROPERTIES" | sed 's/distributionUrl=//')
+DISTRIBUTION_URL="${DISTRIBUTION_URL%%[[:space:]]}"
+
+MAVEN_USER_HOME="${MAVEN_USER_HOME:-$HOME/.m2}"
+WRAPPER_JAR="$MAVEN_USER_HOME/wrapper/dists/maven-wrapper.jar"
+
+# Use JAVA_HOME if set
+if [ -n "$JAVA_HOME" ]; then
+  JAVA_CMD="$JAVA_HOME/bin/java"
+else
+  JAVA_CMD="java"
+fi
+
+WRAPPER_JAR_DIR="$MAVEN_USER_HOME/wrapper"
+mkdir -p "$WRAPPER_JAR_DIR"
+
+if [ ! -f "$WRAPPER_JAR_DIR/maven-wrapper.jar" ]; then
+  WRAPPER_URL=$(grep "wrapperUrl" "$WRAPPER_PROPERTIES" | sed 's/wrapperUrl=//')
+  WRAPPER_URL="${WRAPPER_URL%%[[:space:]]}"
+  if command -v curl > /dev/null; then
+    curl -fsL "$WRAPPER_URL" -o "$WRAPPER_JAR_DIR/maven-wrapper.jar"
+  elif command -v wget > /dev/null; then
+    wget -q "$WRAPPER_URL" -O "$WRAPPER_JAR_DIR/maven-wrapper.jar"
+  fi
+fi
+
+exec "$JAVA_CMD" \
+  -classpath "$WRAPPER_JAR_DIR/maven-wrapper.jar" \
+  org.apache.maven.wrapper.MavenWrapperMain \
+  -MavenWrapperProperties="$WRAPPER_PROPERTIES" \
+  "$@"

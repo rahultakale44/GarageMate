@@ -1,0 +1,51 @@
+spring:
+  datasource:
+    url: jdbc:h2:mem:garagemate_test;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE;MODE=MySQL
+    username: sa
+    password:
+    driver-class-name: org.h2.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    show-sql: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.H2Dialect
+
+  mail:
+    host: localhost
+    port: 25
+    username:
+    password:
+    properties:
+      mail.smtp.auth: false
+
+  cache:
+    type: simple    # Use simple in-memory cache for tests (no Caffeine spec parsing issues)
+
+app:
+  jwt:
+    access-secret: test-access-secret-must-be-at-least-32-chars-long
+    refresh-secret: test-refresh-secret-must-be-at-least-32-chars-long
+    access-expiration-ms: 900000
+    refresh-expiration-ms: 604800000
+  cors:
+    allowed-origins: http://localhost:5173
+  demo-mode: false
+  frontend-url: http://localhost:5173
+  razorpay:
+    key-id: test_key_id
+    key-secret: test_key_secret_must_be_32_chars_long_ok
+    webhook-secret: test_webhook_secret
+  cloudinary:
+    cloud-name: test-cloud
+    api-key: test-api-key
+    api-secret: test-api-secret
+  firebase:
+    service-account-path:
+
+logging:
+  level:
+    com.garagemate: WARN
+    org.springframework.security: WARN
