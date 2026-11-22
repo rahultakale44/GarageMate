@@ -2,6 +2,8 @@ package com.garagemate.api.domain.garage;
 
 import com.garagemate.api.common.AppConstants;
 import com.garagemate.api.domain.garage.dto.*;
+import com.garagemate.api.domain.garage.pricing.GarageServicePricing;
+import com.garagemate.api.domain.garage.pricing.GarageServicePricingRepository;
 import com.garagemate.api.domain.user.User;
 import com.garagemate.api.domain.user.UserRepository;
 import com.garagemate.api.exception.ApiException;
@@ -18,7 +20,6 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
 import java.math.BigDecimal;
-import java.time.DayOfWeek;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
@@ -48,6 +49,7 @@ public class GarageService {
     private final GarageRepository garageRepository;
     private final UserRepository userRepository;
     private final CloudinaryService cloudinaryService;
+    private final GarageServicePricingRepository pricingRepository;
 
     @Value("${app.demo-mode:false}")
     private boolean demoMode;
@@ -63,34 +65,44 @@ public class GarageService {
      */
     @Transactional(readOnly = true)
     public List<GarageDto> searchNearby(NearbySearchParams params) {
-        double radius = Math.min(params.getRadiusKm(),
-                AppConstants.MAX_SEARCH_RADIUS_KM);
+        double radius = Math.min(params.getRadiusKm(), AppConstants.MAX_SEARCH_RADIUS_KM);
 
-        List<Object[]> rows = garageRepository.findNearbyRaw(
+        // Step 1: single query returns (id, distanceKm) pairs, ordered by distance ASC
+        List<Object[]> rows = garageRepository.findNearbyIdsWithDistance(
                 params.getLatitude(), params.getLongitude(), radius, 50);
 
-        List<GarageDto> results = new ArrayList<>();
+        if (rows.isEmpty()) return List.of();
 
+        // Step 2: build ordered id list + distance map in one pass
+        List<Long> orderedIds = new ArrayList<>(rows.size());
+        Map<Long, Double> distanceMap = new LinkedHashMap<>(rows.size());
         for (Object[] row : rows) {
-            // The raw query returns all garage columns + distance as the last column
-            Long garageId = extractLong(row[0]);
-            if (garageId == null) continue;
+            Long id  = row[0] instanceof Number n ? n.longValue() : null;
+            if (id == null) continue;
+            double km = row[1] instanceof Number n ? n.doubleValue() : 0.0;
+            orderedIds.add(id);
+            distanceMap.put(id, km);
+        }
 
-            Garage garage = garageRepository.findById(garageId).orElse(null);
+        // Step 3: batch-fetch all garage entities in one IN query (no N+1)
+        List<Garage> entities = garageRepository.findAllByIdIn(orderedIds);
+        Map<Long, Garage> garageMap = entities.stream()
+                .collect(Collectors.toMap(Garage::getId, g -> g));
+
+        // Step 4: reconstruct in distance order, applying in-memory filters
+        List<GarageDto> results = new ArrayList<>();
+        for (Long id : orderedIds) {
+            Garage garage = garageMap.get(id);
             if (garage == null) continue;
 
-            double distanceKm = row[row.length - 1] instanceof Number n
-                    ? n.doubleValue() : 0.0;
-
-            // Apply optional in-memory filters (not in SQL for portability)
             if (!passesFilters(garage, params)) continue;
 
             boolean isOpen = isGarageOpen(garage);
             if ((params.isOpenNow() || params.is24x7()) && !isOpen) continue;
 
-            results.add(GarageDto.from(garage, distanceKm, isOpen));
+            double distKm = distanceMap.get(id);
+            results.add(GarageDto.from(garage, distKm, isOpen));
         }
-
         return results;
     }
 
@@ -191,6 +203,20 @@ public class GarageService {
             garage.setLongitude(req.longitude());
         }
 
+        // Replace servicePricing atomically when provided
+        if (req.servicePricing() != null) {
+            pricingRepository.deleteByGarageId(garage.getId());
+            req.servicePricing().forEach((serviceName, price) -> {
+                if (price != null && price.compareTo(BigDecimal.ZERO) >= 0) {
+                    pricingRepository.save(GarageServicePricing.builder()
+                            .garage(garage)
+                            .serviceName(serviceName)
+                            .price(price)
+                            .build());
+                }
+            });
+        }
+
         Garage saved = garageRepository.save(garage);
         log.info("Garage updated id={} by ownerId={}", saved.getId(), ownerId);
         return GarageDto.from(saved);
@@ -254,20 +280,23 @@ public class GarageService {
             if (file.getSize() > 5 * 1024 * 1024) {
                 throw ApiException.badRequest("Image file size must not exceed 5 MB");
             }
+            // Upload to Cloudinary FIRST; only add DB record if upload succeeds
+            String url;
             try {
-                String url = cloudinaryService.upload(file, "garagemate/garages");
-                String publicId = cloudinaryService.extractPublicId(url);
-                GarageImage img = GarageImage.builder()
-                        .garage(garage)
-                        .url(url)
-                        .publicId(publicId)
-                        .imageType("gallery")
-                        .build();
-                garage.getImages().add(img);
+                url = cloudinaryService.upload(file, "garagemate/garages");
             } catch (IOException e) {
                 log.error("Image upload failed for garageId={}: {}", garage.getId(), e.getMessage());
-                throw ApiException.internal("Image upload failed");
+                throw ApiException.internal("Image upload failed: " + e.getMessage());
             }
+            String publicId = cloudinaryService.extractPublicId(url);
+            // DB write happens only after successful Cloudinary upload
+            GarageImage img = GarageImage.builder()
+                    .garage(garage)
+                    .url(url)
+                    .publicId(publicId)
+                    .imageType("gallery")
+                    .build();
+            garage.getImages().add(img);
         }
 
         garageRepository.save(garage);
@@ -289,8 +318,17 @@ public class GarageService {
             throw ApiException.notFound("Image not found");
         }
 
+        // Persist DB change first; only delete Cloudinary asset after DB commit
         garageRepository.save(garage);
-        cloudinaryService.delete(publicId);
+
+        // Best-effort Cloudinary deletion — log failure but don't rollback DB
+        // (asset can be cleaned up later via Cloudinary console or reconciliation job)
+        try {
+            cloudinaryService.delete(publicId);
+        } catch (Exception e) {
+            log.warn("Cloudinary deletion failed for publicId={} (DB record removed): {}",
+                    publicId, e.getMessage());
+        }
         log.info("Deleted image publicId={} from garageId={}", publicId, garage.getId());
     }
 

@@ -128,6 +128,12 @@ public class Garage {
     @OneToMany(mappedBy = "garage", cascade = CascadeType.ALL, orphanRemoval = true,
                fetch = FetchType.LAZY)
     @Builder.Default
+    private List<com.garagemate.api.domain.garage.pricing.GarageServicePricing> servicePricing
+            = new ArrayList<>();
+
+    @OneToMany(mappedBy = "garage", cascade = CascadeType.ALL, orphanRemoval = true,
+               fetch = FetchType.LAZY)
+    @Builder.Default
     private List<GarageVerificationHistory> verificationHistory = new ArrayList<>();
 
     @CreationTimestamp

@@ -1,6 +1,7 @@
 package com.garagemate.api.domain.garage;
 
 import com.garagemate.api.domain.garage.dto.*;
+import com.garagemate.api.domain.garage.pricing.GarageServicePricingRepository;
 import com.garagemate.api.domain.user.User;
 import com.garagemate.api.domain.user.UserRepository;
 import com.garagemate.api.domain.user.UserRole;
@@ -24,9 +25,12 @@ import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.BDDMockito.given;
-import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.*;
+
+import java.util.LinkedHashMap;
 
 @ExtendWith(MockitoExtension.class)
 @DisplayName("GarageService")
@@ -35,6 +39,7 @@ class GarageServiceTest {
     @Mock private GarageRepository garageRepository;
     @Mock private UserRepository userRepository;
     @Mock private CloudinaryService cloudinaryService;
+    @Mock private GarageServicePricingRepository pricingRepository;
 
     @InjectMocks private GarageService garageService;
 
@@ -134,7 +139,7 @@ class GarageServiceTest {
 
             UpdateGarageRequest req = new UpdateGarageRequest(
                     "New Name", "9000000000", null, null, null, null,
-                    null, null, null, null, null, null, null, null, null, null, null);
+                    null, null, null, null, null, null, null, null, null, null, null, null);
 
             GarageDto dto = garageService.updateGarage(1L, req);
 
@@ -149,7 +154,7 @@ class GarageServiceTest {
             given(garageRepository.findByOwnerId(2L)).willReturn(Optional.empty());
             assertThatThrownBy(() -> garageService.updateGarage(2L,
                     new UpdateGarageRequest("x", null, null, null, null, null,
-                            null, null, null, null, null, null, null, null, null, null, null)))
+                            null, null, null, null, null, null, null, null, null, null, null, null)))
                     .isInstanceOf(ApiException.class);
         }
     }
@@ -204,6 +209,75 @@ class GarageServiceTest {
         }
     }
 
+    // ── servicePricing update ─────────────────────────────────────────────────
+
+    @Nested @DisplayName("servicePricing")
+    class ServicePricing {
+
+        @Test @DisplayName("saves new pricing entries and returns them in DTO")
+        void savesPricing() {
+            given(garageRepository.findByOwnerId(1L)).willReturn(Optional.of(approvedGarage));
+            given(garageRepository.save(any(Garage.class))).willAnswer(inv -> inv.getArgument(0));
+
+            Map<String, BigDecimal> pricing = new LinkedHashMap<>();
+            pricing.put("Car Repair", new BigDecimal("500.00"));
+            pricing.put("Tyre Puncture", new BigDecimal("200.00"));
+
+            UpdateGarageRequest req = new UpdateGarageRequest(
+                    null, null, null, null, null, null,
+                    null, null, null, null, null, null, null, null, null, null, null,
+                    pricing);
+
+            garageService.updateGarage(1L, req);
+
+            verify(pricingRepository).deleteByGarageId(approvedGarage.getId());
+            verify(pricingRepository, times(2)).save(any());
+        }
+
+        @Test @DisplayName("does not touch pricing when field is null")
+        void skipsPricingWhenNull() {
+            given(garageRepository.findByOwnerId(1L)).willReturn(Optional.of(approvedGarage));
+            given(garageRepository.save(any(Garage.class))).willAnswer(inv -> inv.getArgument(0));
+
+            UpdateGarageRequest req = new UpdateGarageRequest(
+                    "New Name", null, null, null, null, null,
+                    null, null, null, null, null, null, null, null, null, null, null, null);
+
+            garageService.updateGarage(1L, req);
+
+            verify(pricingRepository, never()).deleteByGarageId(any());
+            verify(pricingRepository, never()).save(any());
+        }
+    }
+
+    // ── Cloudinary safety ─────────────────────────────────────────────────────
+
+    @Nested @DisplayName("Cloudinary failure handling")
+    class CloudinaryFailure {
+
+        @Test @DisplayName("deleteImage: DB record removed even if Cloudinary delete fails")
+        void dbRemovedOnCloudinaryDeleteFailure() {
+            GarageImage img = GarageImage.builder()
+                    .id(1L).garage(approvedGarage)
+                    .url("https://res.cloudinary.com/x/img.jpg")
+                    .publicId("garagemate/garages/img").imageType("gallery").build();
+            approvedGarage.getImages().add(img);
+
+            given(garageRepository.findByOwnerId(1L)).willReturn(Optional.of(approvedGarage));
+            given(garageRepository.save(any())).willAnswer(inv -> inv.getArgument(0));
+            // Cloudinary throws — should NOT propagate
+            doThrow(new RuntimeException("Cloudinary down"))
+                    .when(cloudinaryService).delete("garagemate/garages/img");
+
+            // Should complete without throwing
+            assertThatCode(() -> garageService.deleteImage(1L, "garagemate/garages/img"))
+                    .doesNotThrowAnyException();
+
+            // DB save was still called
+            verify(garageRepository).save(any());
+        }
+    }
+
     // ── isGarageOpen ──────────────────────────────────────────────────────────
 
     @Nested @DisplayName("isGarageOpen")
@@ -244,7 +318,7 @@ class GarageServiceTest {
 
         @Test @DisplayName("returns empty when no garages in radius")
         void emptyResult() {
-            given(garageRepository.findNearbyRaw(anyDouble(), anyDouble(),
+            given(garageRepository.findNearbyIdsWithDistance(anyDouble(), anyDouble(),
                     anyDouble(), anyInt())).willReturn(List.of());
 
             NearbySearchParams params = NearbySearchParams.builder()
@@ -256,14 +330,14 @@ class GarageServiceTest {
 
         @Test @DisplayName("caps radius at MAX_SEARCH_RADIUS_KM (50)")
         void capsRadius() {
-            given(garageRepository.findNearbyRaw(anyDouble(), anyDouble(),
+            given(garageRepository.findNearbyIdsWithDistance(anyDouble(), anyDouble(),
                     eq(50.0), anyInt())).willReturn(List.of());
 
             NearbySearchParams params = NearbySearchParams.builder()
                     .latitude(12.9716).longitude(77.5946).radiusKm(999).build();
 
             garageService.searchNearby(params);
-            verify(garageRepository).findNearbyRaw(anyDouble(), anyDouble(), eq(50.0), anyInt());
+            verify(garageRepository).findNearbyIdsWithDistance(anyDouble(), anyDouble(), eq(50.0), anyInt());
         }
     }
 

@@ -56,5 +56,14 @@ public record UpdateGarageRequest(
         Integer numberOfMechanics,
 
         @DecimalMin("0")
-        BigDecimal visitingCharge
+        BigDecimal visitingCharge,
+
+        /**
+         * servicePricing: { "Car Repair": 500, "Tyre Puncture": 200 }
+         * Mirrors MongoDB schema: servicePricing?: Record<string, number>
+         * When present, replaces all existing pricing entries atomically.
+         * When null, existing pricing is left unchanged.
+         * Values must be >= 0.
+         */
+        java.util.Map<String, @jakarta.validation.constraints.DecimalMin("0") BigDecimal> servicePricing
 ) {}

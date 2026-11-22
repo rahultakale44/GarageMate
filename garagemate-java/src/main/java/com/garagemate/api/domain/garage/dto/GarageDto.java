@@ -58,6 +58,9 @@ public class GarageDto {
 
     private final List<GarageImageDto> images;
 
+    /** servicePricing as Map<serviceName, price> matching frontend's Record<string,number> */
+    private final java.util.Map<String, java.math.BigDecimal> servicePricing;
+
     private final LocalDateTime createdAt;
     private final LocalDateTime updatedAt;
 
@@ -111,6 +114,12 @@ public class GarageDto {
                 .visitingCharge(garage.getVisitingCharge())
                 .isDemo(garage.isDemo())
                 .images(garage.getImages().stream().map(GarageImageDto::from).toList())
+                .servicePricing(garage.getServicePricing().stream()
+                        .collect(java.util.stream.Collectors.toMap(
+                                p -> p.getServiceName(),
+                                p -> p.getPrice(),
+                                (a, b) -> b,         // last-write-wins on duplicates
+                                java.util.LinkedHashMap::new)))
                 .createdAt(garage.getCreatedAt())
                 .updatedAt(garage.getUpdatedAt())
                 .distance(distanceKm != null
