@@ -14,6 +14,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.argThat;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.*;
 
@@ -124,12 +125,17 @@ class CloudinaryCleanupServiceTest {
     // ── retryPending ──────────────────────────────────────────────────────────
 
     @Test
-    @DisplayName("retryPending: retries all PENDING rows")
+    @DisplayName("retryPending: delegates to retrySingle per record ID")
     void retriesAllPending() {
         PendingCloudinaryDeletion r1 = pendingRecord("pub-1", 1L);
-        PendingCloudinaryDeletion r2 = pendingRecord("pub-2", 2L);
+        r1 = PendingCloudinaryDeletion.builder().id(1L).publicId("pub-1").garageId(1L).build();
+        PendingCloudinaryDeletion r2 = PendingCloudinaryDeletion.builder().id(2L).publicId("pub-2").garageId(2L).build();
+
         given(cleanupRepository.findByStatus(PendingCloudinaryDeletion.DeletionStatus.PENDING))
                 .willReturn(List.of(r1, r2));
+        // retrySingle calls findById
+        given(cleanupRepository.findById(1L)).willReturn(Optional.of(r1));
+        given(cleanupRepository.findById(2L)).willReturn(Optional.of(r2));
         given(cleanupRepository.save(any())).willAnswer(inv -> inv.getArgument(0));
         doNothing().when(cloudinaryService).delete(any());
 
@@ -142,12 +148,15 @@ class CloudinaryCleanupServiceTest {
     }
 
     @Test
-    @DisplayName("retryPending: partial failure — succeeds are marked DONE, failures stay PENDING")
+    @DisplayName("retryPending: partial failure — succeeds DONE, failures stay PENDING")
     void partialRetryFailure() {
-        PendingCloudinaryDeletion r1 = pendingRecord("pub-ok", 1L);
-        PendingCloudinaryDeletion r2 = pendingRecord("pub-fail", 2L);
+        PendingCloudinaryDeletion r1 = PendingCloudinaryDeletion.builder().id(1L).publicId("pub-ok").garageId(1L).build();
+        PendingCloudinaryDeletion r2 = PendingCloudinaryDeletion.builder().id(2L).publicId("pub-fail").garageId(2L).build();
+
         given(cleanupRepository.findByStatus(PendingCloudinaryDeletion.DeletionStatus.PENDING))
                 .willReturn(List.of(r1, r2));
+        given(cleanupRepository.findById(1L)).willReturn(Optional.of(r1));
+        given(cleanupRepository.findById(2L)).willReturn(Optional.of(r2));
         given(cleanupRepository.save(any())).willAnswer(inv -> inv.getArgument(0));
         doNothing().when(cloudinaryService).delete("pub-ok");
         doThrow(new RuntimeException("network error")).when(cloudinaryService).delete("pub-fail");
@@ -157,7 +166,6 @@ class CloudinaryCleanupServiceTest {
         assertThat(r1.getStatus()).isEqualTo(PendingCloudinaryDeletion.DeletionStatus.DONE);
         assertThat(r2.getStatus()).isEqualTo(PendingCloudinaryDeletion.DeletionStatus.PENDING);
         assertThat(r2.getAttempts()).isEqualTo(1);
-        // Public ID still present on failed record
         assertThat(r2.getPublicId()).isEqualTo("pub-fail");
     }
 
@@ -169,6 +177,61 @@ class CloudinaryCleanupServiceTest {
         svc.retryPending();
 
         verify(cloudinaryService, never()).delete(any());
+    }
+
+    // ── retrySingle ───────────────────────────────────────────────────────────
+
+    @Test
+    @DisplayName("retrySingle: skips record already marked DONE (concurrent safety)")
+    void retrySingleSkipsDone() {
+        PendingCloudinaryDeletion done = pendingRecord();
+        done.markDone();
+        done = PendingCloudinaryDeletion.builder().id(5L).publicId(PUBLIC_ID).garageId(GARAGE_ID).build();
+        done.markDone();
+        given(cleanupRepository.findById(5L)).willReturn(Optional.of(done));
+
+        svc.retrySingle(5L);
+
+        verify(cloudinaryService, never()).delete(any());
+        verify(cleanupRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("retrySingle: skips missing record safely")
+    void retrySingleMissingRecord() {
+        given(cleanupRepository.findById(99L)).willReturn(Optional.empty());
+
+        assertThatCode(() -> svc.retrySingle(99L)).doesNotThrowAnyException();
+        verify(cloudinaryService, never()).delete(any());
+    }
+
+    // ── purgeDoneRecords ──────────────────────────────────────────────────────
+
+    @Test
+    @DisplayName("purgeDoneRecords: deletes DONE records older than cutoff")
+    void purgesDoneRecords() {
+        PendingCloudinaryDeletion old = pendingRecord("old-pub", 1L);
+        old.markDone();
+        given(cleanupRepository.findByStatusAndCreatedAtBefore(
+                eq(PendingCloudinaryDeletion.DeletionStatus.DONE), any()))
+                .willReturn(List.of(old));
+
+        int count = svc.purgeDoneRecords(30);
+
+        assertThat(count).isEqualTo(1);
+        verify(cleanupRepository).deleteAll(List.of(old));
+    }
+
+    @Test
+    @DisplayName("purgeDoneRecords: no-op when nothing to purge")
+    void purgeNoOp() {
+        given(cleanupRepository.findByStatusAndCreatedAtBefore(any(), any()))
+                .willReturn(List.of());
+
+        int count = svc.purgeDoneRecords(30);
+
+        assertThat(count).isEqualTo(0);
+        verify(cleanupRepository, never()).deleteAll(any(java.util.Collection.class));
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────────

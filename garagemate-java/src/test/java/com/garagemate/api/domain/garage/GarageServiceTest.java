@@ -313,38 +313,42 @@ class GarageServiceTest {
 
     // ── Cloudinary safety ─────────────────────────────────────────────────────
 
-    @Nested @DisplayName("Cloudinary failure handling (outbox pattern)")
+    @Nested @DisplayName("Cloudinary image add safety")
     class CloudinaryFailure {
 
-        @Test @DisplayName("deleteImage: removes DB record and registers outbox row atomically")
-        void registersOutboxRow() {
-            GarageImage img = GarageImage.builder()
-                    .id(1L).garage(approvedGarage)
-                    .url("https://res.cloudinary.com/x/img.jpg")
-                    .publicId("garagemate/garages/img").imageType("gallery").build();
-            approvedGarage.getImages().add(img);
-
+        @Test @DisplayName("uploadImages: Cloudinary upload failure does not write DB record")
+        void uploadFailureNoDbRecord() throws Exception {
             given(garageRepository.findByOwnerId(1L)).willReturn(Optional.of(approvedGarage));
-            given(garageRepository.save(any())).willAnswer(inv -> inv.getArgument(0));
-            // registerPendingDeletion needs to do nothing (it's @Transactional MANDATORY —
-            // in a mock context we just verify it was called)
+            doThrow(new java.io.IOException("Cloudinary 503"))
+                    .when(cloudinaryService).upload(any(), any());
 
-            garageService.deleteImage(1L, "garagemate/garages/img");
+            org.springframework.mock.web.MockMultipartFile file =
+                    new org.springframework.mock.web.MockMultipartFile(
+                            "file", "test.jpg", "image/jpeg", new byte[100]);
 
-            // DB record removed
-            verify(garageRepository).save(any());
-            // Public ID preserved in outbox — Cloudinary NOT called directly
-            verify(cloudinaryService, never()).delete(any());
+            assertThatThrownBy(() -> garageService.uploadImages(1L, java.util.List.of(file)))
+                    .isInstanceOf(com.garagemate.api.exception.ApiException.class)
+                    .hasMessageContaining("Image upload failed");
+
+            // DB not saved — no partial record
+            verify(garageRepository, never()).save(any());
         }
 
-        @Test @DisplayName("deleteImage: returns 404 for unknown publicId")
-        void notFoundPublicId() {
-            approvedGarage.getImages().clear();  // no images
+        @Test @DisplayName("addImages: JSON-URL method persists all entries")
+        void addImagesJsonPersistsAll() {
             given(garageRepository.findByOwnerId(1L)).willReturn(Optional.of(approvedGarage));
+            given(garageRepository.save(any())).willAnswer(inv -> inv.getArgument(0));
 
-            assertThatThrownBy(() -> garageService.deleteImage(1L, "nonexistent"))
-                    .isInstanceOf(com.garagemate.api.exception.ApiException.class)
-                    .hasMessageContaining("Image not found");
+            AddImagesRequest req = new AddImagesRequest(java.util.List.of(
+                    new AddImagesRequest.ImageEntry(
+                            "https://res.cloudinary.com/test/img.jpg",
+                            "garagemate/garages/img", "gallery")
+            ));
+
+            List<GarageImageDto> images = garageService.addImages(1L, req);
+            assertThat(images).hasSize(1);
+            assertThat(images.get(0).getUrl()).contains("cloudinary.com");
+            verify(garageRepository).save(any());
         }
     }
 

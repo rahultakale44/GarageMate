@@ -82,6 +82,11 @@ public class CloudinaryCleanupService {
 
     /**
      * Retries all PENDING deletions — called by @Scheduled job.
+     * Each record is processed in its own REQUIRES_NEW transaction so:
+     *   a) A failure on one record does not roll back others.
+     *   b) The status update (PENDING→DONE or attempt increment) is committed
+     *      immediately, preventing duplicate processing if the scheduler fires
+     *      again before the batch completes.
      */
     @Transactional
     public void retryPending() {
@@ -91,8 +96,40 @@ public class CloudinaryCleanupService {
 
         log.info("Retrying {} pending Cloudinary deletions", pending.size());
         for (PendingCloudinaryDeletion record : pending) {
-            doDelete(record);
+            retrySingle(record.getId());
         }
+    }
+
+    /**
+     * Processes one outbox record in its own transaction.
+     * REQUIRES_NEW ensures the status update is committed even if the caller's
+     * transaction (retryPending) is later rolled back or is itself in a different state.
+     */
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public void retrySingle(Long recordId) {
+        PendingCloudinaryDeletion record = cleanupRepository.findById(recordId).orElse(null);
+        if (record == null || record.getStatus() == PendingCloudinaryDeletion.DeletionStatus.DONE) {
+            return; // already processed by a concurrent execution
+        }
+        doDelete(record);
+    }
+
+    /**
+     * Deletes DONE records older than the given number of days.
+     * Called by @Scheduled job to prevent unbounded table growth.
+     */
+    @Transactional
+    public int purgeDoneRecords(int olderThanDays) {
+        java.time.LocalDateTime cutoff = java.time.LocalDateTime.now()
+                .minusDays(olderThanDays);
+        List<PendingCloudinaryDeletion> stale =
+                cleanupRepository.findByStatusAndCreatedAtBefore(
+                        PendingCloudinaryDeletion.DeletionStatus.DONE, cutoff);
+        if (stale.isEmpty()) return 0;
+        cleanupRepository.deleteAll(stale);
+        log.info("Purged {} DONE Cloudinary deletion records older than {} days",
+                stale.size(), olderThanDays);
+        return stale.size();
     }
 
     // ── Internal ──────────────────────────────────────────────────────────────

@@ -304,51 +304,6 @@ public class GarageService {
         return garage.getImages().stream().map(GarageImageDto::from).toList();
     }
 
-    /**
-     * Deletes an image from the garage using the transactional outbox pattern.
-     *
-     * Within the transaction:
-     *   1. Remove the GarageImage record from the Garage (DB change)
-     *   2. Insert a PendingCloudinaryDeletion row (preserves the publicId for retry)
-     *   Both writes are atomic — if the transaction rolls back, both revert.
-     *
-     * After the transaction commits (async):
-     *   3. Attempt Cloudinary deletion via CloudinaryCleanupService
-     *   4. On success: outbox row marked DONE
-     *   5. On failure: outbox row stays PENDING for the retry scheduler
-     *
-     * This guarantees the publicId is never permanently lost, even if
-     * Cloudinary is unavailable at the time of deletion.
-     */
-    @Transactional
-    public void deleteImage(Long ownerId, String publicId) {
-        Garage garage = garageRepository.findByOwnerId(ownerId)
-                .orElseThrow(() -> ApiException.notFound("Garage not found"));
-
-        boolean removed = garage.getImages()
-                .removeIf(img -> publicId.equals(img.getPublicId()));
-
-        if (!removed) {
-            throw ApiException.notFound("Image not found");
-        }
-
-        // Step 1+2 (atomic): remove DB image record + insert outbox row
-        garageRepository.save(garage);
-        cloudinaryCleanupService.registerPendingDeletion(publicId, garage.getId());
-
-        log.info("DB image removed, Cloudinary deletion queued: publicId={} garageId={}",
-                publicId, garage.getId());
-        // Step 3 runs after this method returns (async, after TX commit)
-    }
-
-    /**
-     * Called by controller after deleteImage() transaction has committed.
-     * Triggers the async Cloudinary deletion attempt.
-     */
-    public void triggerCloudinaryDeletion(String publicId) {
-        cloudinaryCleanupService.attemptDeletion(publicId);
-    }
-
     // ── Package-visible: used by AuthService on garage registration ───────────
 
     /**
@@ -470,13 +425,5 @@ public class GarageService {
         if (minRating != null && g.getRating().doubleValue() < minRating) return false;
 
         return true;
-    }
-
-    private Long extractLong(Object value) {
-        if (value instanceof Number n) return n.longValue();
-        if (value instanceof String s) {
-            try { return Long.parseLong(s); } catch (NumberFormatException e) { return null; }
-        }
-        return null;
     }
 }
