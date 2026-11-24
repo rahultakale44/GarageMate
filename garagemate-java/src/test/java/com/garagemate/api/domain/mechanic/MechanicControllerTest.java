@@ -162,6 +162,22 @@ class MechanicControllerTest {
                 .andExpect(status().isUnprocessableEntity());
     }
 
+    @Test @DisplayName("PATCH /api/mechanics/100/location → 422 when latitude out of range")
+    void updateLocationInvalidLatitude() throws Exception {
+        mockMvc.perform(patch("/api/mechanics/100/location")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"latitude\":91.0,\"longitude\":77.5946}"))
+                .andExpect(status().isUnprocessableEntity());
+    }
+
+    @Test @DisplayName("PATCH /api/mechanics/100/location → 422 when longitude out of range")
+    void updateLocationInvalidLongitude() throws Exception {
+        mockMvc.perform(patch("/api/mechanics/100/location")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"latitude\":12.9716,\"longitude\":181.0}"))
+                .andExpect(status().isUnprocessableEntity());
+    }
+
     // ── PATCH /api/mechanics/:id ──────────────────────────────────────────────
 
     @Test @DisplayName("PATCH /api/mechanics/100 → 200 with updated mechanic")

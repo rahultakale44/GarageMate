@@ -105,7 +105,7 @@ public class MechanicService {
             mechanic.setName(req.name().trim());
         if (req.phone()    != null && !req.phone().isBlank())
             mechanic.setPhone(req.phone().trim());
-        if (req.avatar()   != null)
+        if (req.avatar()   != null && !req.avatar().isBlank())
             mechanic.setAvatar(req.avatar());
         if (req.skills()   != null) {
             mechanic.getSkills().clear();

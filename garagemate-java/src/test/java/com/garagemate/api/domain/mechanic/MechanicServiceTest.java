@@ -230,6 +230,68 @@ class MechanicServiceTest {
             MechanicDto dto = mechanicService.updateMechanic(100L, 1L, req);
             assertThat(dto.getSkills()).containsExactly("AC Repair");
         }
+
+        @Test @DisplayName("empty skills list clears existing skills (empty array IS written)")
+        void emptySkillsClearsExisting() {
+            given(garageRepository.findByOwnerId(1L)).willReturn(Optional.of(garage));
+            given(mechanicRepository.findByIdAndGarageId(100L, 10L))
+                    .willReturn(Optional.of(sampleMechanic));
+            given(mechanicRepository.save(any())).willAnswer(inv -> inv.getArgument(0));
+
+            // JS: skills && { skills } — empty array [] is truthy → written
+            UpdateMechanicRequest req = new UpdateMechanicRequest(
+                    null, null, null, List.of(), null, null, null);
+
+            MechanicDto dto = mechanicService.updateMechanic(100L, 1L, req);
+            assertThat(dto.getSkills()).isEmpty();
+        }
+
+        @Test @DisplayName("empty vehicleExpertise clears existing entries")
+        void emptyVehicleExpertiseClears() {
+            given(garageRepository.findByOwnerId(1L)).willReturn(Optional.of(garage));
+            given(mechanicRepository.findByIdAndGarageId(100L, 10L))
+                    .willReturn(Optional.of(sampleMechanic));
+            given(mechanicRepository.save(any())).willAnswer(inv -> inv.getArgument(0));
+
+            UpdateMechanicRequest req = new UpdateMechanicRequest(
+                    null, null, null, null, List.of(), null, null);
+
+            MechanicDto dto = mechanicService.updateMechanic(100L, 1L, req);
+            assertThat(dto.getVehicleExpertise()).isEmpty();
+        }
+
+        @Test @DisplayName("experience = 0 IS written (mirrors: experience !== undefined)")
+        void experienceZeroIsWritten() {
+            given(garageRepository.findByOwnerId(1L)).willReturn(Optional.of(garage));
+            given(mechanicRepository.findByIdAndGarageId(100L, 10L))
+                    .willReturn(Optional.of(sampleMechanic));
+            given(mechanicRepository.save(any())).willAnswer(inv -> inv.getArgument(0));
+
+            // Original: ...(experience !== undefined && { experience }) → 0 IS applied
+            UpdateMechanicRequest req = new UpdateMechanicRequest(
+                    null, null, null, null, null, 0, null);
+
+            MechanicDto dto = mechanicService.updateMechanic(100L, 1L, req);
+            assertThat(dto.getExperience()).isEqualTo(0);
+        }
+
+        @Test @DisplayName("null fields leave existing values unchanged")
+        void nullFieldsPreserveExisting() {
+            given(garageRepository.findByOwnerId(1L)).willReturn(Optional.of(garage));
+            given(mechanicRepository.findByIdAndGarageId(100L, 10L))
+                    .willReturn(Optional.of(sampleMechanic));
+            given(mechanicRepository.save(any())).willAnswer(inv -> inv.getArgument(0));
+
+            // All-null request — nothing should change
+            UpdateMechanicRequest req = new UpdateMechanicRequest(
+                    null, null, null, null, null, null, null);
+
+            MechanicDto dto = mechanicService.updateMechanic(100L, 1L, req);
+            assertThat(dto.getName()).isEqualTo("Ali");          // unchanged
+            assertThat(dto.getPhone()).isEqualTo("9876543210"); // unchanged
+            assertThat(dto.getExperience()).isEqualTo(5);       // unchanged
+            assertThat(dto.getStatus()).isEqualTo(MechanicStatus.AVAILABLE); // unchanged
+        }
     }
 
     // ── deleteMechanic ────────────────────────────────────────────────────────
@@ -289,6 +351,39 @@ class MechanicServiceTest {
                             new BigDecimal("12.9716"), new BigDecimal("77.5946"))))
                     .isInstanceOf(ApiException.class)
                     .hasMessageContaining("Garage not found");
+        }
+
+        @Test @DisplayName("boundary coordinates 90/-90 lat and 180/-180 lng are accepted")
+        void boundaryCoordinatesAccepted() {
+            given(garageRepository.findByOwnerId(1L)).willReturn(Optional.of(garage));
+            given(mechanicRepository.findByIdAndGarageId(100L, 10L))
+                    .willReturn(Optional.of(sampleMechanic));
+            given(mechanicRepository.save(any())).willAnswer(inv -> inv.getArgument(0));
+
+            // Max valid: North Pole (90°N), 180°E
+            UpdateLocationRequest req = new UpdateLocationRequest(
+                    new BigDecimal("90"), new BigDecimal("180"));
+
+            MechanicDto.LocationDto loc = mechanicService.updateLocation(100L, 1L, req);
+            assertThat(loc.getCoordinates()[0]).isEqualTo(180.0); // longitude
+            assertThat(loc.getCoordinates()[1]).isEqualTo(90.0);  // latitude
+        }
+
+        @Test @DisplayName("stores latitude in currentLatitude and longitude in currentLongitude")
+        void correctColumnAssignment() {
+            given(garageRepository.findByOwnerId(1L)).willReturn(Optional.of(garage));
+            given(mechanicRepository.findByIdAndGarageId(100L, 10L))
+                    .willReturn(Optional.of(sampleMechanic));
+            given(mechanicRepository.save(any())).willAnswer(inv -> {
+                Mechanic m = inv.getArgument(0);
+                // Verify the entity fields were set in the right order
+                assertThat(m.getCurrentLatitude()).isEqualByComparingTo("12.9716");
+                assertThat(m.getCurrentLongitude()).isEqualByComparingTo("77.5946");
+                return m;
+            });
+
+            mechanicService.updateLocation(100L, 1L,
+                    new UpdateLocationRequest(new BigDecimal("12.9716"), new BigDecimal("77.5946")));
         }
     }
 
