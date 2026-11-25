@@ -15,7 +15,9 @@ public interface AssistanceRequestRepository extends JpaRepository<AssistanceReq
 
     // User's own requests
     List<AssistanceRequest> findByUserIdOrderByCreatedAtDesc(Long userId);
+    List<AssistanceRequest> findByUserIdAndStatusOrderByCreatedAtDesc(Long userId, RequestStatus status);
     Optional<AssistanceRequest> findByIdAndUserId(Long id, Long userId);
+    Optional<AssistanceRequest> findByIdAndGarageId(Long id, Long garageId);
 
     // Garage's directly-assigned requests (GARAGE_SELECTED and beyond)
     @Query("""
